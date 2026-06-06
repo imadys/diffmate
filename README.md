@@ -41,12 +41,20 @@ diffmate review
 
 Running `diffmate` with no arguments also opens the review screen.
 
+If the current directory is not a Git repository, `diffmate` opens a setup
+screen and can initialize Git for that directory.
+
 ## Keybindings
 
 | Key | Action |
 | --- | --- |
 | `j`, `down` | Move to next file |
 | `k`, `up` | Move to previous file |
+| `1` | Focus sidebar |
+| `2` | Focus diff |
+| `tab` | Toggle focused panel |
+| `t` | Manage visible sidebar tabs |
+| `left`, `right` | Switch sidebar tabs when sidebar is focused |
 | `]`, `right` | Scroll diff down one line |
 | `[`, `left` | Scroll diff up one line |
 | `space`, `f`, `pgdown`, `ctrl+d` | Scroll diff down one page |
@@ -58,8 +66,10 @@ Running `diffmate` with no arguments also opens the review screen.
 | `S` | Stage all changes |
 | `U` | Unstage all changes |
 | `c` | Open commit message box |
+| `ctrl+g` | Suggest a commit message with Codex |
 | `ctrl+s` | Create commit from the commit message box |
 | `esc` | Cancel commit message box |
+| `p` | Push current branch |
 | `e`, `enter` | Open selected file in `$VISUAL`, `$EDITOR`, or `vi` |
 | `r` | Refresh |
 | `?` | Show full keymap |

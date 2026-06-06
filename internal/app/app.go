@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/imadys/diffmate/internal/git"
@@ -33,7 +34,17 @@ func runReview() error {
 	ctx := context.Background()
 	repo, err := git.Open(ctx)
 	if err != nil {
-		return err
+		if !errors.Is(err, git.ErrNotRepository) {
+			return err
+		}
+		initialized, err := runSetup()
+		if err != nil || !initialized {
+			return err
+		}
+		repo, err = git.Open(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	program := tea.NewProgram(tui.New(repo), tea.WithAltScreen())
@@ -47,6 +58,25 @@ func runReview() error {
 	return nil
 }
 
+func runSetup() (bool, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return false, err
+	}
+
+	program := tea.NewProgram(tui.NewSetup(dir), tea.WithAltScreen())
+	final, err := program.Run()
+	if err != nil {
+		if errors.Is(err, tea.ErrProgramKilled) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	result, ok := final.(interface{ Initialized() bool })
+	return ok && result.Initialized(), nil
+}
+
 const helpText = `diffmate - review your working tree before committing
 
 Usage:
@@ -55,6 +85,10 @@ Usage:
 
 Keybindings:
   up/down, k/j   move through files
+  1              focus sidebar
+  2              focus diff
+  tab            toggle focused panel
+  t              manage visible sidebar tabs
   [, ]           scroll diff by line
   pgup/pgdn      scroll diff by page
   space          scroll diff down by page
@@ -64,7 +98,9 @@ Keybindings:
   S              stage all files
   U              unstage all files
   c              write commit message
+  ctrl+g         suggest commit message with Codex
   ctrl+s         create commit from message box
+  p              push current branch
   e              open selected file in $EDITOR
   r              refresh
   ?              show full keymap

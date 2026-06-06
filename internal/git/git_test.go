@@ -97,6 +97,30 @@ func TestStageAllUnstageAllAndCommit(t *testing.T) {
 	}
 }
 
+func TestInitCreatesRepositoryWithDescription(t *testing.T) {
+	dir := t.TempDir()
+
+	repo, err := Init(context.Background(), dir, "menu app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.Root != dir {
+		t.Fatalf("expected repo root %q, got %q", dir, repo.Root)
+	}
+
+	description, err := os.ReadFile(filepath.Join(dir, ".git", "description"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(description) != "menu app\n" {
+		t.Fatalf("unexpected description: %q", description)
+	}
+
+	if _, err := OpenInDir(context.Background(), dir); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 
