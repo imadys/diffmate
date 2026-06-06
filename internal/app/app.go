@@ -85,10 +85,11 @@ Usage:
 
 Keybindings:
   up/down, k/j   move through files
-  1              focus sidebar
-  2              focus diff
-  tab            toggle focused panel
-  t              manage visible sidebar tabs
+  1-4            focus sidebar cards
+  5              focus diff
+  tab            cycle cards and diff
+  ,              open config
+  t              open config sections
   [, ]           scroll diff by line
   pgup/pgdn      scroll diff by page
   space          scroll diff down by page
@@ -101,6 +102,8 @@ Keybindings:
   ctrl+g         suggest commit message with Codex
   ctrl+s         create commit from message box
   p              push current branch
+  o              open preferred editor
+  a              open preferred agent
   e              open selected file in $EDITOR
   r              refresh
   ?              show full keymap

@@ -50,11 +50,12 @@ screen and can initialize Git for that directory.
 | --- | --- |
 | `j`, `down` | Move to next file |
 | `k`, `up` | Move to previous file |
-| `1` | Focus sidebar |
-| `2` | Focus diff |
-| `tab` | Toggle focused panel |
-| `t` | Manage visible sidebar tabs |
-| `left`, `right` | Switch sidebar tabs when sidebar is focused |
+| `1`-`4` | Focus sidebar cards |
+| `5` | Focus diff |
+| `tab` | Cycle cards and diff |
+| `,` | Open config |
+| `t` | Open config sections |
+| `left`, `right` | Switch sidebar sections when sidebar is focused |
 | `]`, `right` | Scroll diff down one line |
 | `[`, `left` | Scroll diff up one line |
 | `space`, `f`, `pgdown`, `ctrl+d` | Scroll diff down one page |
@@ -70,6 +71,8 @@ screen and can initialize Git for that directory.
 | `ctrl+s` | Create commit from the commit message box |
 | `esc` | Cancel commit message box |
 | `p` | Push current branch |
+| `o` | Open project in preferred editor |
+| `a` | Open preferred coding agent |
 | `e`, `enter` | Open selected file in `$VISUAL`, `$EDITOR`, or `vi` |
 | `r` | Refresh |
 | `?` | Show full keymap |
