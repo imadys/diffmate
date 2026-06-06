@@ -388,6 +388,8 @@ func (m model) updateCommitMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			runes := []rune(m.commitMessage)
 			m.commitMessage = string(runes[:len(runes)-1])
 		}
+	case " ":
+		m.commitMessage += " "
 	default:
 		if msg.Type == tea.KeyRunes {
 			m.commitMessage += msg.String()
