@@ -23,12 +23,14 @@ type model struct {
 	selected      int
 	diff          string
 	diffOffset    int
+	fileOffset    int
 	width         int
 	height        int
 	err           error
 	status        string
 	loading       bool
 	mode          screenMode
+	showHelp      bool
 	commitMessage string
 }
 
@@ -103,6 +105,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.refresh()
 	case tea.KeyMsg:
+		if m.showHelp && msg.String() != "?" {
+			m.showHelp = false
+			return m, nil
+		}
 		if m.mode == commitMode {
 			return m.updateCommitMode(msg)
 		}
@@ -114,6 +120,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.showHelp = !m.showHelp
+		return m, nil
 	case "q", "ctrl+c", "esc":
 		return m, tea.Quit
 	case "r":
@@ -123,23 +132,29 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "up", "k":
 		if m.selected > 0 {
 			m.selected--
+			m.keepSelectedFileVisible()
 			m.diffOffset = 0
 			return m, m.loadDiff()
 		}
 	case "down", "j":
 		if m.selected < len(m.files)-1 {
 			m.selected++
+			m.keepSelectedFileVisible()
 			m.diffOffset = 0
 			return m, m.loadDiff()
 		}
-	case "pgup", "b":
-		m.diffOffset -= m.diffHeight()
-		if m.diffOffset < 0 {
-			m.diffOffset = 0
-		}
-	case "pgdown", "f", " ":
-		m.diffOffset += m.diffHeight()
-		m.clampDiffOffset()
+	case "[", "left":
+		m.scrollDiff(-1)
+	case "]", "right":
+		m.scrollDiff(1)
+	case "pgup", "b", "ctrl+u":
+		m.scrollDiff(-m.diffHeight())
+	case "pgdown", "f", " ", "ctrl+d":
+		m.scrollDiff(m.diffHeight())
+	case "g", "home":
+		m.diffOffset = 0
+	case "G", "end":
+		m.diffOffset = max(0, len(m.diffLines())-m.diffHeight())
 	case "s":
 		return m, m.stage()
 	case "u":
@@ -192,7 +207,7 @@ func (m model) View() string {
 		return "loading diffmate..."
 	}
 
-	bodyHeight := max(1, m.height-4)
+	bodyHeight := max(5, m.height-3)
 	sidebarWidth := clamp(34, 26, m.width/2)
 	diffWidth := max(24, m.width-sidebarWidth)
 
@@ -204,6 +219,9 @@ func (m model) View() string {
 
 	if m.mode == commitMode {
 		body = overlayCommitBox(body, m.renderCommitBox())
+	}
+	if m.showHelp {
+		body = overlayCommitBox(body, m.renderHelpBox())
 	}
 
 	return appStyle.Render(header + "\n" + body + "\n" + footer)
@@ -312,7 +330,9 @@ func (m model) renderFiles(width, height int) string {
 	if len(m.files) == 0 {
 		lines = append(lines, mutedStyle.Render("No changes"))
 	} else {
-		for i, file := range m.files {
+		visibleFiles := m.visibleFiles(contentHeight - 1)
+		for visibleIndex, file := range visibleFiles {
+			i := m.fileOffset + visibleIndex
 			line := m.renderFileLine(file, width-4)
 			if i == m.selected {
 				line = selectedStyle.Width(width - 4).Render(line)
@@ -349,7 +369,7 @@ func (m model) renderFileLine(file git.FileStatus, width int) string {
 
 func (m model) renderDiff(width, height int) string {
 	contentHeight := max(1, height-2)
-	lines := strings.Split(m.diff, "\n")
+	lines := m.diffLines()
 	if strings.TrimSpace(m.diff) == "" {
 		lines = []string{mutedStyle.Render("Select a changed file to view its diff.")}
 	}
@@ -363,7 +383,8 @@ func (m model) renderDiff(width, height int) string {
 
 	header := subtleStyle.Render("Diff")
 	if len(m.files) > 0 {
-		header = subtleStyle.Render(truncate(m.files[m.selected].Path, width-4))
+		scroll := fmt.Sprintf("  %d/%d", min(m.diffOffset+1, len(lines)), max(1, len(lines)))
+		header = subtleStyle.Render(truncate(m.files[m.selected].Path, max(1, width-4-len(scroll)))) + mutedStyle.Render(scroll)
 	}
 
 	out := append([]string{header}, visible...)
@@ -376,6 +397,35 @@ func (m model) renderDiff(width, height int) string {
 		Height(height).
 		Padding(0, 1).
 		Render(fitLines(out, contentHeight))
+}
+
+func (m model) renderHelpBox() string {
+	lines := []string{
+		titleStyle.Render("Keymap"),
+		"",
+		"k/j, up/down       move between files",
+		"[, ], left/right   scroll diff by line",
+		"space, f/b         scroll diff by page",
+		"ctrl+d/ctrl+u      scroll diff by page",
+		"g/G                jump diff top/bottom",
+		"s/u                stage/unstage selected file",
+		"S/U                stage/unstage all changes",
+		"c                  open commit message box",
+		"e, enter           open selected file in editor",
+		"r                  refresh",
+		"q, esc             quit",
+		"?                  show/hide this help",
+	}
+
+	width := clamp(58, 38, max(38, m.width-8))
+	height := min(len(lines)+2, max(8, m.height-4))
+	return lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("86")).
+		Padding(1, 2).
+		Render(fitLines(lines, height-2))
 }
 
 func (m model) renderCommitBox() string {
@@ -408,9 +458,11 @@ func (m model) renderFooter() string {
 		status = errorStyle.Render(m.err.Error())
 	}
 
-	keys := "k/j move  s/u file  S/U all  c commit  e edit  r refresh  q quit"
+	keys := "k/j files  [/]/space diff  s/u file  S/U all  c commit  ? keys  q quit"
 	if m.mode == commitMode {
 		keys = "type message  ctrl+s commit  esc cancel"
+	} else if m.showHelp {
+		keys = "? hide help"
 	}
 	keysRendered := mutedStyle.Render(keys)
 
@@ -420,13 +472,54 @@ func (m model) renderFooter() string {
 }
 
 func (m model) diffHeight() int {
-	return max(1, m.height-6)
+	return max(1, m.height-5)
 }
 
 func (m *model) clampDiffOffset() {
-	maxOffset := max(0, len(strings.Split(m.diff, "\n"))-m.diffHeight())
+	maxOffset := max(0, len(m.diffLines())-m.diffHeight())
 	if m.diffOffset > maxOffset {
 		m.diffOffset = maxOffset
+	}
+	if m.diffOffset < 0 {
+		m.diffOffset = 0
+	}
+}
+
+func (m *model) scrollDiff(delta int) {
+	m.diffOffset += delta
+	m.clampDiffOffset()
+}
+
+func (m model) diffLines() []string {
+	if m.diff == "" {
+		return []string{""}
+	}
+	return strings.Split(m.diff, "\n")
+}
+
+func (m model) visibleFiles(count int) []git.FileStatus {
+	if count <= 0 || len(m.files) == 0 {
+		return nil
+	}
+	m.keepSelectedFileVisible()
+	end := min(len(m.files), m.fileOffset+count)
+	return m.files[m.fileOffset:end]
+}
+
+func (m *model) keepSelectedFileVisible() {
+	if m.selected < m.fileOffset {
+		m.fileOffset = m.selected
+	}
+	visibleCount := max(1, m.height-6)
+	if m.selected >= m.fileOffset+visibleCount {
+		m.fileOffset = m.selected - visibleCount + 1
+	}
+	maxOffset := max(0, len(m.files)-visibleCount)
+	if m.fileOffset > maxOffset {
+		m.fileOffset = maxOffset
+	}
+	if m.fileOffset < 0 {
+		m.fileOffset = 0
 	}
 }
 

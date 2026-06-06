@@ -47,8 +47,12 @@ Running `diffmate` with no arguments also opens the review screen.
 | --- | --- |
 | `j`, `down` | Move to next file |
 | `k`, `up` | Move to previous file |
-| `space`, `pgdown` | Scroll diff down |
-| `b`, `pgup` | Scroll diff up |
+| `]`, `right` | Scroll diff down one line |
+| `[`, `left` | Scroll diff up one line |
+| `space`, `f`, `pgdown`, `ctrl+d` | Scroll diff down one page |
+| `b`, `pgup`, `ctrl+u` | Scroll diff up one page |
+| `g` | Jump to top of diff |
+| `G` | Jump to bottom of diff |
 | `s` | Stage selected file |
 | `u` | Unstage selected file |
 | `S` | Stage all changes |
@@ -58,6 +62,7 @@ Running `diffmate` with no arguments also opens the review screen.
 | `esc` | Cancel commit message box |
 | `e`, `enter` | Open selected file in `$VISUAL`, `$EDITOR`, or `vi` |
 | `r` | Refresh |
+| `?` | Show full keymap |
 | `q`, `esc` | Quit |
 
 ## Development

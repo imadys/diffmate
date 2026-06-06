@@ -55,7 +55,10 @@ Usage:
 
 Keybindings:
   up/down, k/j   move through files
-  pgup/pgdn      scroll diff
+  [, ]           scroll diff by line
+  pgup/pgdn      scroll diff by page
+  space          scroll diff down by page
+  g, G           jump diff top/bottom
   s              stage selected file
   u              unstage selected file
   S              stage all files
@@ -64,4 +67,5 @@ Keybindings:
   ctrl+s         create commit from message box
   e              open selected file in $EDITOR
   r              refresh
+  ?              show full keymap
   q              quit`
