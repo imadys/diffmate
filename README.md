@@ -1,4 +1,6 @@
-# diffmate
+████▄ ▄▄ ▄▄▄▄▄ ▄▄▄▄▄ ▄▄ ▄▄ ▄▄▄ ▄▄▄▄▄▄ ▄▄▄▄▄
+██ ██ ██ ██▄▄ ██▄▄ ██▀▄▀██ ██▀██ ██ ██▄▄  
+████▀ ██ ██ ██ ██ ██ ██▀██ ██ ██▄▄▄
 
 Review your working tree from the terminal before committing.
 
@@ -46,37 +48,37 @@ screen and can initialize Git for that directory.
 
 ## Keybindings
 
-| Key | Action |
-| --- | --- |
-| `j`, `down` | Move to next file |
-| `k`, `up` | Move to previous file |
-| `1`-`4` | Focus sidebar cards |
-| `5` | Focus diff |
-| `tab` | Cycle cards and diff |
-| `,` | Open config |
-| `t` | Open config sections |
-| `left`, `right` | Switch sidebar sections when sidebar is focused |
-| `]`, `right` | Scroll diff down one line |
-| `[`, `left` | Scroll diff up one line |
-| `space`, `f`, `pgdown`, `ctrl+d` | Scroll diff down one page |
-| `b`, `pgup`, `ctrl+u` | Scroll diff up one page |
-| `g` | Jump to top of diff |
-| `G` | Jump to bottom of diff |
-| `s` | Stage selected file |
-| `u` | Unstage selected file |
-| `S` | Stage all changes |
-| `U` | Unstage all changes |
-| `c` | Open commit message box |
-| `ctrl+g` | Suggest a commit message with Codex |
-| `ctrl+s` | Create commit from the commit message box |
-| `esc` | Cancel commit message box |
-| `p` | Push current branch |
-| `o` | Open project in preferred editor |
-| `a` | Open preferred coding agent |
-| `e`, `enter` | Open selected file in `$VISUAL`, `$EDITOR`, or `vi` |
-| `r` | Refresh |
-| `?` | Show full keymap |
-| `q`, `esc` | Quit |
+| Key                              | Action                                              |
+| -------------------------------- | --------------------------------------------------- |
+| `j`, `down`                      | Move to next file                                   |
+| `k`, `up`                        | Move to previous file                               |
+| `1`-`4`                          | Focus sidebar cards                                 |
+| `5`                              | Focus diff                                          |
+| `tab`                            | Cycle cards and diff                                |
+| `,`                              | Open config                                         |
+| `t`                              | Open config sections                                |
+| `left`, `right`                  | Switch sidebar sections when sidebar is focused     |
+| `]`, `right`                     | Scroll diff down one line                           |
+| `[`, `left`                      | Scroll diff up one line                             |
+| `space`, `f`, `pgdown`, `ctrl+d` | Scroll diff down one page                           |
+| `b`, `pgup`, `ctrl+u`            | Scroll diff up one page                             |
+| `g`                              | Jump to top of diff                                 |
+| `G`                              | Jump to bottom of diff                              |
+| `s`                              | Stage selected file                                 |
+| `u`                              | Unstage selected file                               |
+| `S`                              | Stage all changes                                   |
+| `U`                              | Unstage all changes                                 |
+| `c`                              | Open commit message box                             |
+| `ctrl+g`                         | Suggest a commit message with Codex                 |
+| `ctrl+s`                         | Create commit from the commit message box           |
+| `esc`                            | Cancel commit message box                           |
+| `p`                              | Push current branch                                 |
+| `o`                              | Open project in preferred editor                    |
+| `a`                              | Open preferred coding agent                         |
+| `e`, `enter`                     | Open selected file in `$VISUAL`, `$EDITOR`, or `vi` |
+| `r`                              | Refresh                                             |
+| `?`                              | Show full keymap                                    |
+| `q`, `esc`                       | Quit                                                |
 
 ## Development
 
