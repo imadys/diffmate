@@ -92,8 +92,11 @@ func (m model) keySegments() []keySegment {
 			{"space", "checkout"},
 			{"m", "merge"},
 			{"u", "upstream"},
+			{"p", "push"},
 			{"n", "new branch"},
 			{"d", "delete"},
+			{"D", "delete remote"},
+			{"ctrl+d", "delete both"},
 			{"?", "keymap"},
 		}
 	case commitsTab:

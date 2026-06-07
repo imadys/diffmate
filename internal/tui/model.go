@@ -43,6 +43,8 @@ const (
 	confirmNone confirmAction = iota
 	confirmDiscardChange
 	confirmDeleteBranch
+	confirmDeleteRemoteBranch
+	confirmDeleteBranchBoth
 )
 
 type model struct {
@@ -354,7 +356,23 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.scrollDiff(1)
 	case "pgup", "b", "ctrl+u":
 		m.scrollDiff(-m.diffHeight())
-	case "pgdown", "f", "ctrl+d":
+	case "pgdown", "f":
+		m.scrollDiff(m.diffHeight())
+	case "ctrl+d":
+		if m.focus == sidebarFocus && m.tab == branchesTab {
+			if isProtectedBranch(m.selectedBranchName()) {
+				m.err = errors.New("main and master are protected branches")
+				m.status = "protected branch"
+				return m, nil
+			}
+			if len(m.branches) > 0 && m.branches[m.branchSelected].Current {
+				m.err = errors.New("checkout another branch before deleting the current branch")
+				m.status = "cannot delete current branch"
+				return m, nil
+			}
+			m.openConfirm(confirmDeleteBranchBoth, "Delete local and remote branch", "Delete "+m.selectedBranchName()+" locally and on GitHub?")
+			return m, nil
+		}
 		m.scrollDiff(m.diffHeight())
 	case " ":
 		if m.focus == sidebarFocus {
@@ -389,6 +407,15 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "D":
 		if m.focus == sidebarFocus && m.tab == changesTab {
 			m.openConfirm(confirmDiscardChange, "Discard change", "Discard all changes for "+m.selectedChangeLabel()+"?")
+			return m, nil
+		}
+		if m.focus == sidebarFocus && m.tab == branchesTab {
+			if isProtectedBranch(m.selectedBranchName()) {
+				m.err = errors.New("main and master are protected branches")
+				m.status = "protected branch"
+				return m, nil
+			}
+			m.openConfirm(confirmDeleteRemoteBranch, "Delete remote branch", "Delete origin/"+m.selectedBranchName()+" on GitHub?")
 			return m, nil
 		}
 	case "n":
@@ -525,6 +552,10 @@ func (m model) updateConfirmMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.discardChange()
 		case confirmDeleteBranch:
 			return m, m.deleteBranch()
+		case confirmDeleteRemoteBranch:
+			return m, m.deleteRemoteBranch()
+		case confirmDeleteBranchBoth:
+			return m, m.deleteBranchBoth()
 		default:
 			return m, nil
 		}

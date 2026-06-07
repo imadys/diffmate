@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./diffmate-logo.svg" alt="Diffmate" width="504">
+  <img src="./assets/diffmate-logo.svg" alt="Diffmate" width="504">
 </p>
 
 Review your working tree from the terminal before committing.
@@ -8,6 +8,18 @@ Review your working tree from the terminal before committing.
 terminal. Run it inside a repository, scan changed and untracked files, inspect
 diffs, stage or unstage files, commit, push, and jump into your editor or coding
 agent without leaving the keyboard.
+
+## Preview
+
+<p align="center">
+  <img src="./assets/screenshot-1.png" alt="Diffmate review screen">
+</p>
+
+<p align="center">
+  <img src="./assets/gif-1.gif" alt="Diffmate demo 1" width="31%">
+  <img src="./assets/gif-2.gif" alt="Diffmate demo 2" width="31%">
+  <img src="./assets/gif-3.gif" alt="Diffmate demo 3" width="31%">
+</p>
 
 ## Why
 
@@ -122,12 +134,14 @@ prompt mode yet, `diffmate` shows a placeholder instead of blocking the modal.
 | `m`                              | Pick a branch to merge into the current branch      |
 | `u`                              | Update current branch from upstream                 |
 | `d`                              | Delete selected branch with confirmation            |
+| `D`                              | Delete selected remote branch with confirmation     |
+| `ctrl+d`                         | Delete selected local and remote branch             |
 | `c`                              | Open commit message box                             |
 | `ctrl+g`                         | Suggest a commit message with preferred agent       |
 | `ctrl+s`                         | Create commit from the commit message box           |
 | `ctrl+d`                         | Clear commit message and modal errors               |
 | `esc`                            | Cancel commit message box                           |
-| `p`                              | Push current branch                                 |
+| `p`                              | Push current branch and set upstream if needed      |
 | `o`                              | Open project in preferred editor                    |
 | `a`                              | Open preferred coding agent                         |
 | `e`, `enter`                     | Open selected file in `$VISUAL`, `$EDITOR`, or `vi` |

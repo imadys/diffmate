@@ -158,6 +158,29 @@ func (m model) deleteBranch() tea.Cmd {
 		return actionMsg{status: "deleted branch " + branch.Name, err: err}
 	}
 }
+func (m model) deleteRemoteBranch() tea.Cmd {
+	if m.tab != branchesTab || len(m.branches) == 0 {
+		return nil
+	}
+	branch := m.branches[m.branchSelected]
+	return func() tea.Msg {
+		err := m.repo.DeleteRemoteBranch(context.Background(), branch)
+		return actionMsg{status: "deleted origin/" + branch.Name, err: err}
+	}
+}
+func (m model) deleteBranchBoth() tea.Cmd {
+	if m.tab != branchesTab || len(m.branches) == 0 {
+		return nil
+	}
+	branch := m.branches[m.branchSelected]
+	return func() tea.Msg {
+		if err := m.repo.DeleteRemoteBranch(context.Background(), branch); err != nil {
+			return actionMsg{status: "delete failed", err: err}
+		}
+		err := m.repo.DeleteBranch(context.Background(), branch)
+		return actionMsg{status: "deleted " + branch.Name + " locally and remotely", err: err}
+	}
+}
 func (m model) mergeSelectedBranch() tea.Cmd {
 	if len(m.branches) == 0 {
 		return nil

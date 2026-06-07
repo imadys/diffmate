@@ -236,7 +236,20 @@ func (r Repo) Commit(ctx context.Context, message string) error {
 }
 
 func (r Repo) Push(ctx context.Context) error {
-	_, err := run(ctx, r.Root, "push")
+	branch, err := r.CurrentBranch(ctx)
+	if err != nil {
+		return err
+	}
+	if branch == "" {
+		return errors.New("cannot push without a current branch")
+	}
+
+	if _, err := run(ctx, r.Root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"); err != nil {
+		_, err = run(ctx, r.Root, "push", "-u", "origin", branch)
+		return err
+	}
+
+	_, err = run(ctx, r.Root, "push")
 	return err
 }
 
@@ -293,6 +306,17 @@ func (r Repo) DeleteBranch(ctx context.Context, branch Branch) error {
 	return err
 }
 
+func (r Repo) DeleteRemoteBranch(ctx context.Context, branch Branch) error {
+	if branch.Name == "" {
+		return errors.New("branch name cannot be empty")
+	}
+	if branch.Name == "main" || branch.Name == "master" {
+		return errors.New("main and master are protected branches")
+	}
+	_, err := run(ctx, r.Root, "push", "origin", "--delete", branch.Name)
+	return err
+}
+
 func (r Repo) MergeBranch(ctx context.Context, branch Branch) error {
 	if branch.Name == "" {
 		return errors.New("branch name cannot be empty")
@@ -307,6 +331,14 @@ func (r Repo) MergeBranch(ctx context.Context, branch Branch) error {
 func (r Repo) PullUpstream(ctx context.Context) error {
 	_, err := run(ctx, r.Root, "pull", "--ff-only")
 	return err
+}
+
+func (r Repo) CurrentBranch(ctx context.Context) (string, error) {
+	out, err := run(ctx, r.Root, "branch", "--show-current")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
 }
 
 func (r Repo) HasStagedChanges(ctx context.Context) (bool, error) {
