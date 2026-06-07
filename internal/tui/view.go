@@ -23,10 +23,14 @@ func (m model) View() string {
 	bodyHeight := max(1, m.height-headerHeight-footerHeight-topGap)
 	sidebarWidth := clamp(34, 26, bodyWidth/2)
 	diffWidth := max(1, bodyWidth-sidebarWidth-bodyGap)
+	diffHeight, consoleHeight := m.rightPaneHeights(bodyHeight)
 
 	files := m.renderSidebar(sidebarWidth, bodyHeight)
-	diff := m.renderDiff(diffWidth, bodyHeight)
-	body := lipgloss.JoinHorizontal(lipgloss.Top, files, strings.Repeat(" ", bodyGap), diff)
+	rightPane := m.renderDiff(diffWidth, diffHeight)
+	if consoleHeight > 0 {
+		rightPane += "\n" + m.renderConsole(diffWidth, consoleHeight)
+	}
+	body := lipgloss.JoinHorizontal(lipgloss.Top, files, strings.Repeat(" ", bodyGap), rightPane)
 
 	if m.mode == commitMode {
 		body = overlayCommitBox(body, m.renderCommitBox())

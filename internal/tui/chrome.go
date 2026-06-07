@@ -128,6 +128,10 @@ func (m model) renderKeySegments(width int) string {
 	for _, segment := range m.keySegments() {
 		parts = append(parts, keyStyle.Render(segment.key)+" "+segment.label)
 	}
+	parts = append(parts, keyStyle.Render("~")+" console")
+	if m.consoleVisible {
+		parts = append(parts, keyStyle.Render("ctrl+l")+" clear")
+	}
 	parts = append(parts, keyStyle.Render("q")+" quit")
 	content := strings.Join(parts, " | ")
 	return keyBarStyle.Render(truncate(content, width))
@@ -164,9 +168,6 @@ func (m model) footerStatus() string {
 	status := m.status
 	if m.loading {
 		status = "loading"
-	}
-	if m.err != nil {
-		status = errorStyle.Render(m.err.Error())
 	}
 	if status == "" {
 		status = "ready"

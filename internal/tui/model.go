@@ -75,6 +75,8 @@ type model struct {
 	showWelcome     bool
 	showHelp        bool
 	showTabs        bool
+	consoleVisible  bool
+	consoleLines    []string
 	configSection   int
 	tabsEnabled     [4]bool
 	tabMenuSelected int
@@ -119,13 +121,14 @@ func New(repo git.Repo) model {
 	}
 
 	return model{
-		repo:        repo,
-		loading:     true,
-		focus:       sidebarFocus,
-		tab:         changesTab,
-		settings:    userSettings,
-		showWelcome: !userSettings.SeenWelcome,
-		tabsEnabled: tabsFromSettings(userSettings),
+		repo:           repo,
+		loading:        true,
+		focus:          sidebarFocus,
+		tab:            changesTab,
+		settings:       userSettings,
+		showWelcome:    !userSettings.SeenWelcome,
+		consoleVisible: true,
+		tabsEnabled:    tabsFromSettings(userSettings),
 	}
 }
 
@@ -144,6 +147,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.err = msg.err
 		if msg.err != nil {
+			m.appendConsoleError("refresh", msg.err)
 			return m, nil
 		}
 		m.files = msg.files
@@ -187,9 +191,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else if m.mode == commitMode {
 			m.commitError = firstLine(msg.err.Error())
 			m.status = "commit failed"
+			m.appendConsoleError("commit", msg.err)
 		} else if m.mode == branchInputMode {
 			m.inputError = firstLine(msg.err.Error())
 			m.status = "new branch failed"
+			m.appendConsoleError("branch", msg.err)
+		} else {
+			m.status = "action failed"
+			m.appendConsoleError("git", msg.err)
 		}
 		return m, m.refresh()
 	case suggestMsg:
@@ -199,6 +208,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.commitError = firstLine(msg.err.Error())
 			m.status = "commit suggestion failed"
+			m.appendConsoleError("suggest", msg.err)
 			return m, nil
 		}
 		m.commitMessage = msg.message
@@ -268,6 +278,15 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "?":
 		m.showHelp = !m.showHelp
+		return m, nil
+	case "~":
+		m.consoleVisible = !m.consoleVisible
+		m.syncDiffViewport()
+		m.updateDiffViewportContent()
+		return m, nil
+	case "ctrl+l":
+		m.consoleLines = nil
+		m.status = "console cleared"
 		return m, nil
 	case ",", "t":
 		m.showTabs = true
@@ -363,11 +382,13 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if isProtectedBranch(m.selectedBranchName()) {
 				m.err = errors.New("main and master are protected branches")
 				m.status = "protected branch"
+				m.appendConsoleError("branch", m.err)
 				return m, nil
 			}
 			if len(m.branches) > 0 && m.branches[m.branchSelected].Current {
 				m.err = errors.New("checkout another branch before deleting the current branch")
 				m.status = "cannot delete current branch"
+				m.appendConsoleError("branch", m.err)
 				return m, nil
 			}
 			m.openConfirm(confirmDeleteBranchBoth, "Delete local and remote branch", "Delete "+m.selectedBranchName()+" locally and on GitHub?")
@@ -413,6 +434,7 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if isProtectedBranch(m.selectedBranchName()) {
 				m.err = errors.New("main and master are protected branches")
 				m.status = "protected branch"
+				m.appendConsoleError("branch", m.err)
 				return m, nil
 			}
 			m.openConfirm(confirmDeleteRemoteBranch, "Delete remote branch", "Delete origin/"+m.selectedBranchName()+" on GitHub?")
@@ -432,11 +454,13 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if isProtectedBranch(m.selectedBranchName()) {
 				m.err = errors.New("main and master are protected branches")
 				m.status = "protected branch"
+				m.appendConsoleError("branch", m.err)
 				return m, nil
 			}
 			if len(m.branches) > 0 && m.branches[m.branchSelected].Current {
 				m.err = errors.New("checkout another branch before deleting the current branch")
 				m.status = "cannot delete current branch"
+				m.appendConsoleError("branch", m.err)
 				return m, nil
 			}
 			m.openConfirm(confirmDeleteBranch, "Delete branch", "Delete branch "+m.selectedBranchName()+"?")
@@ -447,11 +471,13 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if isProtectedBranch(m.currentBranchName()) {
 				m.err = errors.New("main and master are protected from receiving merges in diffmate")
 				m.status = "protected branch"
+				m.appendConsoleError("branch", m.err)
 				return m, nil
 			}
 			if len(m.branches) <= 1 {
 				m.err = errors.New("no other branch available to merge")
 				m.status = "merge unavailable"
+				m.appendConsoleError("branch", m.err)
 				return m, nil
 			}
 			m.mode = mergePickerMode

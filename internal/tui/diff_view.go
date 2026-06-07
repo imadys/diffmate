@@ -71,9 +71,10 @@ func (m *model) syncDiffViewport() {
 	bodyHeight := max(1, m.height-headerHeight-footerHeight-topGap)
 	sidebarWidth := clamp(34, 26, bodyWidth/2)
 	diffWidth := max(1, bodyWidth-sidebarWidth-bodyGap)
+	diffHeight, _ := m.rightPaneHeights(bodyHeight)
 
 	innerWidth := max(1, diffWidth-4)
-	innerHeight := max(1, bodyHeight-2)
+	innerHeight := max(1, diffHeight-2)
 	m.diffViewport.Width = max(1, innerWidth-2)
 	m.diffViewport.Height = max(1, innerHeight-1)
 }

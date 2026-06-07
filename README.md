@@ -72,6 +72,7 @@ The review screen uses a bento-style terminal layout:
 
 - Changes, branches, commits, and stash live in numbered sidebar cards.
 - The diff panel fills the remaining terminal width.
+- The console panel keeps Git and app errors visible under the diff.
 - The footer keeps the main workflow shortcuts visible.
 - The screen refreshes automatically every 3 minutes when no modal is open.
 
@@ -146,6 +147,8 @@ prompt mode yet, `diffmate` shows a placeholder instead of blocking the modal.
 | `a`                              | Open preferred coding agent                         |
 | `e`, `enter`                     | Open selected file in `$VISUAL`, `$EDITOR`, or `vi` |
 | `r`                              | Refresh                                             |
+| `~`                              | Show or hide the console panel                      |
+| `ctrl+l`                         | Clear console log history                           |
 | `?`                              | Show full keymap                                    |
 | `q`, `esc`                       | Quit                                                |
 

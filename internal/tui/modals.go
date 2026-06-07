@@ -41,6 +41,8 @@ func (m model) renderHelpBox() string {
 		"ctrl+g             suggest commit message with codex",
 		"e, enter           open selected file in editor",
 		"r                  refresh",
+		"~                  show/hide console",
+		"ctrl+l             clear console log",
 		"q, esc             quit",
 		"?                  show/hide this help",
 	}
