@@ -12,7 +12,7 @@ func (m model) View() string {
 	}
 
 	sideInset := 1
-	topGap := 1
+	topGap := 0
 	bodyGap := 1
 	bodyWidth := max(1, m.width-sideInset*2)
 
@@ -31,6 +31,12 @@ func (m model) View() string {
 	if m.mode == commitMode {
 		body = overlayCommitBox(body, m.renderCommitBox())
 	}
+	if m.mode == confirmMode {
+		body = overlayCommitBox(body, m.renderConfirmBox())
+	}
+	if m.mode == branchInputMode {
+		body = overlayCommitBox(body, m.renderBranchInputBox())
+	}
 	if m.showHelp {
 		body = overlayCommitBox(body, m.renderHelpBox())
 	}
@@ -42,5 +48,9 @@ func (m model) View() string {
 	}
 
 	body = indentBlock(body, sideInset)
-	return appStyle.Render(header + "\n" + strings.Repeat("\n", topGap) + body + "\n" + footer)
+	gap := ""
+	if topGap > 0 {
+		gap = strings.Repeat("\n", topGap)
+	}
+	return appStyle.Render(header + "\n" + gap + body + "\n" + footer)
 }

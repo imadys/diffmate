@@ -11,13 +11,14 @@ import (
 )
 
 type setupModel struct {
-	dir         string
-	repoName    string
-	width       int
-	height      int
-	err         error
-	loading     bool
-	initialized bool
+	dir           string
+	repoName      string
+	width         int
+	height        int
+	err           error
+	loading       bool
+	cursorVisible bool
+	initialized   bool
 }
 
 type initRepoMsg struct {
@@ -26,8 +27,9 @@ type initRepoMsg struct {
 
 func NewSetup(dir string) setupModel {
 	return setupModel{
-		dir:      dir,
-		repoName: filepath.Base(dir),
+		dir:           dir,
+		repoName:      filepath.Base(dir),
+		cursorVisible: true,
 	}
 }
 
@@ -36,7 +38,7 @@ func (m setupModel) Initialized() bool {
 }
 
 func (m setupModel) Init() tea.Cmd {
-	return nil
+	return cursorTick()
 }
 
 func (m setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -53,6 +55,12 @@ func (m setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.initialized = true
 		return m, tea.Quit
+	case cursorTickMsg:
+		if m.loading {
+			return m, nil
+		}
+		m.cursorVisible = !m.cursorVisible
+		return m, cursorTick()
 	case tea.KeyMsg:
 		if m.loading {
 			return m, nil
@@ -121,11 +129,9 @@ func (m setupModel) View() string {
 func (m setupModel) renderInput() string {
 	value := m.repoName
 	if value == "" {
-		value = " "
-	}
-	cursor := ""
-	if !m.loading {
-		cursor = selectedStyle.Render(" ")
+		value = inputCursor(m.cursorVisible) + mutedStyle.Render("repo name")
+	} else if !m.loading {
+		value += inputCursor(m.cursorVisible)
 	}
 
 	label := subtleStyle.Render("repo name")
@@ -134,7 +140,7 @@ func (m setupModel) renderInput() string {
 		BorderForeground(lipgloss.Color("60")).
 		Padding(0, 1).
 		Width(42).
-		Render(value + cursor)
+		Render(value)
 
 	return label + "\n" + field
 }

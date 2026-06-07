@@ -69,6 +69,10 @@ func truncate(value string, width int) string {
 	}
 	return string(runes) + "…"
 }
+func normalizeBranchName(value string) string {
+	parts := strings.Fields(strings.TrimSpace(value))
+	return strings.Join(parts, "-")
+}
 func clamp(value, low, high int) int {
 	return min(max(value, low), high)
 }

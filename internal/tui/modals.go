@@ -23,8 +23,12 @@ func (m model) renderHelpBox() string {
 		"space, f/b         scroll diff by page",
 		"ctrl+d/ctrl+u      scroll diff by page",
 		"g/G                jump diff top/bottom",
-		"s/u                stage/unstage selected file",
-		"S/U                stage/unstage all changes",
+		"space              primary action in focused card",
+		"S/U                stage/unstage all changes in changes",
+		"s                  stash changes in changes",
+		"D                  reset selected change with confirm",
+		"n                  new branch in branches",
+		"d                  delete branch with confirm",
 		"c                  open commit message box",
 		"p                  push current branch",
 		"o                  open preferred editor",
@@ -61,8 +65,10 @@ func (m model) renderWelcomeBox() string {
 		"right              focus diff for selected row",
 		"left               return to sidebar from diff",
 		"h/l                switch cards or scroll diff",
-		"s/u                stage/unstage selected file",
+		"space              primary action in focused card",
 		"S/U                stage/unstage all changes",
+		"s                  stash changes",
+		"D                  reset selected change",
 		"c                  commit message box",
 		"ctrl+g             suggest commit with Codex",
 		"p                  push current branch",
@@ -159,7 +165,9 @@ func (m model) renderCommitBox() string {
 
 	messageLines := strings.Split(m.commitMessage, "\n")
 	if m.commitMessage == "" {
-		messageLines = []string{mutedStyle.Render("Commit message")}
+		messageLines = []string{inputCursor(m.cursorVisible) + mutedStyle.Render("Commit message")}
+	} else {
+		messageLines[len(messageLines)-1] += inputCursor(m.cursorVisible)
 	}
 	messageBody := fitLines(messageLines, contentHeight)
 
@@ -180,6 +188,57 @@ func (m model) renderCommitBox() string {
 		Padding(1, 2).
 		Render(titleStyle.Render("Commit") + "\n" + messageBody + "\n" + help)
 }
+
+func (m model) renderConfirmBox() string {
+	lines := []string{
+		titleStyle.Render(m.confirmTitle),
+		"",
+		m.confirmMessage,
+		"",
+		mutedStyle.Render("y/enter confirm  esc cancel"),
+	}
+	return lipgloss.NewStyle().
+		Width(clamp(72, 42, max(42, m.width-8))).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("203")).
+		Padding(1, 2).
+		Render(strings.Join(lines, "\n"))
+}
+
+func (m model) renderBranchInputBox() string {
+	width := clamp(64, 38, max(38, m.width-8))
+	input := m.branchNameInput
+	if input == "" {
+		input = inputCursor(m.cursorVisible) + mutedStyle.Render("branch name")
+	} else {
+		input += inputCursor(m.cursorVisible)
+	}
+	help := mutedStyle.Render("enter create  esc cancel")
+	if m.inputError != "" {
+		help = errorStyle.Render(m.inputError) + "\n" + help
+	}
+	lines := []string{
+		titleStyle.Render("New branch"),
+		"",
+		input,
+		"",
+		help,
+	}
+	return lipgloss.NewStyle().
+		Width(width).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("86")).
+		Padding(1, 2).
+		Render(strings.Join(lines, "\n"))
+}
+
+func inputCursor(visible bool) string {
+	if !visible {
+		return " "
+	}
+	return selectedStyle.Render(" ")
+}
+
 func sectionTitle(tab sidebarTab) string {
 	switch tab {
 	case changesTab:

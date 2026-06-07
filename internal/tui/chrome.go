@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,13 +14,8 @@ func (m model) renderHeader(width int) string {
 		count = "1 file"
 	}
 
-	left := subtleStyle.Render("review before commit")
-	right := subtleStyle.Render(m.repoName() + "  " + count)
-	if lipgloss.Width(left)+lipgloss.Width(right)+1 > width {
-		return headerStyle.Width(width).Render(truncate(left, width))
-	}
-	spacer := strings.Repeat(" ", max(1, width-lipgloss.Width(left)-lipgloss.Width(right)))
-	return headerStyle.Width(width).Render(left + spacer + right)
+	content := titleStyle.Render(m.repoName()) + subtleStyle.Render("  "+count)
+	return headerStyle.Render(truncate(content, width))
 }
 func (m model) repoName() string {
 	name := filepath.Base(m.repo.Root)
@@ -42,6 +36,21 @@ func (m model) keySegments() []keySegment {
 		}
 	}
 
+	if m.mode == confirmMode {
+		return []keySegment{
+			{"y/enter", "confirm"},
+			{"esc", "cancel"},
+		}
+	}
+
+	if m.mode == branchInputMode {
+		return []keySegment{
+			{"type", "branch name"},
+			{"enter", "create"},
+			{"esc", "cancel"},
+		}
+	}
+
 	if m.showHelp {
 		return []keySegment{
 			{"?", "hide help"},
@@ -49,22 +58,48 @@ func (m model) keySegments() []keySegment {
 		}
 	}
 
-	return []keySegment{
-		{"1-4", "cards"},
-		{"5", "diff"},
-		{"tab", "next"},
-		{",", "config"},
-		{"j/k", "files"},
-		{"[/]", "diff line"},
-		{"space", "diff page"},
-		{"g/G", "top/bottom"},
-		{"s/u", "file stage"},
-		{"S/U", "all stage"},
-		{"c", "commit"},
-		{"p", "push"},
-		{"o", "editor"},
-		{"a", "agent"},
-		{"?", "all keys"},
+	if m.focus == diffFocus {
+		return []keySegment{
+			{"[/]", "line"},
+			{"space", "page"},
+			{"g/G", "top/bottom"},
+			{"left", "cards"},
+			{"?", "keymap"},
+		}
+	}
+
+	switch m.tab {
+	case changesTab:
+		return []keySegment{
+			{"space", "stage/unstage"},
+			{"S", "stage all"},
+			{"U", "unstage all"},
+			{"s", "stash"},
+			{"D", "reset"},
+			{"c", "commit"},
+			{"?", "keymap"},
+		}
+	case branchesTab:
+		return []keySegment{
+			{"space", "checkout"},
+			{"n", "new branch"},
+			{"d", "delete"},
+			{"?", "keymap"},
+		}
+	case commitsTab:
+		return []keySegment{
+			{"space", "view diff"},
+			{"?", "keymap"},
+		}
+	case stashTab:
+		return []keySegment{
+			{"space", "view stash"},
+			{"?", "keymap"},
+		}
+	default:
+		return []keySegment{
+			{"?", "keymap"},
+		}
 	}
 }
 
@@ -76,12 +111,22 @@ type keySegment struct {
 func (m model) renderKeySegments(width int) string {
 	logo := miniLogo()
 	status := m.footerStatus()
-	content := logo + " " + status + " | " + keyStyle.Render("c") + " commit | " + keyStyle.Render("p") + " push | " + keyStyle.Render("S") + " stage all | " + keyStyle.Render("U") + " unstage all | " + keyStyle.Render("o") + " editor | " + keyStyle.Render("a") + " agent | " + keyStyle.Render(",") + " config | " + keyStyle.Render("?") + " keymap | " + keyStyle.Render("q") + " quit"
+	parts := []string{logo + " " + status}
+	for _, segment := range m.keySegments() {
+		parts = append(parts, keyStyle.Render(segment.key)+" "+segment.label)
+	}
+	parts = append(parts, keyStyle.Render("q")+" quit")
+	content := strings.Join(parts, " | ")
 	return keyBarStyle.Render(truncate(content, width))
 }
 func suggestTick() tea.Cmd {
 	return tea.Tick(time.Second, func(time.Time) tea.Msg {
 		return suggestTickMsg{}
+	})
+}
+func cursorTick() tea.Cmd {
+	return tea.Tick(500*time.Millisecond, func(time.Time) tea.Msg {
+		return cursorTickMsg{}
 	})
 }
 func firstLine(message string) string {
@@ -110,6 +155,10 @@ func (m model) footerStatus() string {
 	}
 	if m.mode == commitMode {
 		status = "commit mode"
+	} else if m.mode == confirmMode {
+		status = "confirm"
+	} else if m.mode == branchInputMode {
+		status = "new branch"
 	} else if m.showHelp {
 		status = "help"
 	}

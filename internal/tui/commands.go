@@ -90,6 +90,16 @@ func (m model) stage() tea.Cmd {
 		return m.repo.Stage(ctx, file)
 	})
 }
+func (m model) toggleStage() tea.Cmd {
+	if m.tab != changesTab || len(m.files) == 0 {
+		return nil
+	}
+	file := m.files[m.selected]
+	if file.Index != ' ' && file.Index != '?' {
+		return m.unstage()
+	}
+	return m.stage()
+}
 func (m model) unstage() tea.Cmd {
 	if m.tab != changesTab {
 		return nil
@@ -108,6 +118,44 @@ func (m model) unstageAll() tea.Cmd {
 	return func() tea.Msg {
 		err := m.repo.UnstageAll(context.Background())
 		return actionMsg{status: "unstaged all changes", err: err}
+	}
+}
+func (m model) stashChanges() tea.Cmd {
+	return func() tea.Msg {
+		err := m.repo.Stash(context.Background())
+		return actionMsg{status: "stashed changes", err: err}
+	}
+}
+func (m model) discardChange() tea.Cmd {
+	return m.withSelected("discarded", func(ctx context.Context, file git.FileStatus) error {
+		return m.repo.Discard(ctx, file)
+	})
+}
+func (m model) checkoutBranch() tea.Cmd {
+	if m.tab != branchesTab || len(m.branches) == 0 {
+		return nil
+	}
+	branch := m.branches[m.branchSelected]
+	return func() tea.Msg {
+		err := m.repo.CheckoutBranch(context.Background(), branch)
+		return actionMsg{status: "checked out " + branch.Name, err: err}
+	}
+}
+func (m model) createBranch() tea.Cmd {
+	name := normalizeBranchName(m.branchNameInput)
+	return func() tea.Msg {
+		err := m.repo.CreateBranch(context.Background(), name)
+		return actionMsg{status: "created branch " + name, err: err}
+	}
+}
+func (m model) deleteBranch() tea.Cmd {
+	if m.tab != branchesTab || len(m.branches) == 0 {
+		return nil
+	}
+	branch := m.branches[m.branchSelected]
+	return func() tea.Msg {
+		err := m.repo.DeleteBranch(context.Background(), branch)
+		return actionMsg{status: "deleted branch " + branch.Name, err: err}
 	}
 }
 func (m model) commit() tea.Cmd {

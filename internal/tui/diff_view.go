@@ -63,7 +63,7 @@ func (m *model) syncDiffViewport() {
 	}
 
 	sideInset := 1
-	topGap := 1
+	topGap := 0
 	bodyGap := 1
 	bodyWidth := max(1, m.width-sideInset*2)
 	headerHeight := 1

@@ -240,6 +240,56 @@ func (r Repo) Push(ctx context.Context) error {
 	return err
 }
 
+func (r Repo) Stash(ctx context.Context) error {
+	_, err := run(ctx, r.Root, "stash", "push", "-u")
+	return err
+}
+
+func (r Repo) Discard(ctx context.Context, file FileStatus) error {
+	if file.IsUntracked() {
+		_, err := run(ctx, r.Root, "clean", "-fd", "--", file.Path)
+		return err
+	}
+
+	args := []string{"restore", "--staged", "--worktree", "--", file.Path}
+	if r.HasHead(ctx) {
+		args = []string{"restore", "--source=HEAD", "--staged", "--worktree", "--", file.Path}
+	}
+	_, err := run(ctx, r.Root, args...)
+	return err
+}
+
+func (r Repo) CheckoutBranch(ctx context.Context, branch Branch) error {
+	if branch.Name == "" {
+		return errors.New("branch name cannot be empty")
+	}
+	if branch.Current {
+		return nil
+	}
+	_, err := run(ctx, r.Root, "checkout", branch.Name)
+	return err
+}
+
+func (r Repo) CreateBranch(ctx context.Context, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("branch name cannot be empty")
+	}
+	_, err := run(ctx, r.Root, "checkout", "-b", name)
+	return err
+}
+
+func (r Repo) DeleteBranch(ctx context.Context, branch Branch) error {
+	if branch.Name == "" {
+		return errors.New("branch name cannot be empty")
+	}
+	if branch.Current {
+		return errors.New("cannot delete the current branch")
+	}
+	_, err := run(ctx, r.Root, "branch", "-d", branch.Name)
+	return err
+}
+
 func (r Repo) HasStagedChanges(ctx context.Context) (bool, error) {
 	cmd := exec.CommandContext(ctx, "git", "diff", "--cached", "--quiet", "--exit-code")
 	cmd.Dir = r.Root

@@ -14,7 +14,7 @@ var (
 	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("230")).Background(lipgloss.Color("60")).Bold(true)
 	linkedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Background(lipgloss.Color("238"))
 	panelStyle    = lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("238"))
-	headerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Background(lipgloss.Color("235")).Bold(true)
+	headerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Bold(true)
 	keyStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Bold(true)
 	keyBarStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
 	statusStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("248")).Background(lipgloss.Color("235")).Padding(0, 1)

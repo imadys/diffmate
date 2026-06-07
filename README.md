@@ -108,14 +108,17 @@ prompt mode yet, `diffmate` shows a placeholder instead of blocking the modal.
 | `left`, `right`                  | Switch sidebar sections when sidebar is focused     |
 | `]`, `right`                     | Scroll diff down one line                           |
 | `[`, `left`                      | Scroll diff up one line                             |
-| `space`, `f`, `pgdown`, `ctrl+d` | Scroll diff down one page                           |
+| `space`, `f`, `pgdown`, `ctrl+d` | Scroll diff down one page when diff is focused      |
 | `b`, `pgup`, `ctrl+u`            | Scroll diff up one page                             |
 | `g`                              | Jump to top of diff                                 |
 | `G`                              | Jump to bottom of diff                              |
-| `s`                              | Stage selected file                                 |
-| `u`                              | Unstage selected file                               |
-| `S`                              | Stage all changes                                   |
-| `U`                              | Unstage all changes                                 |
+| `space`                          | Primary action in focused card                      |
+| `S`                              | Stage all changes in Changes                        |
+| `U`                              | Unstage all changes in Changes                      |
+| `s`                              | Stash changes in Changes                            |
+| `D`                              | Reset selected change with confirmation             |
+| `n`                              | Create a new branch in Branches                     |
+| `d`                              | Delete selected branch with confirmation            |
 | `c`                              | Open commit message box                             |
 | `ctrl+g`                         | Suggest a commit message with preferred agent       |
 | `ctrl+s`                         | Create commit from the commit message box           |

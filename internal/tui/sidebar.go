@@ -79,6 +79,7 @@ func (m model) renderChangeItems(width, height int, current, focused bool) []str
 		i := offset + visibleIndex
 		line := m.renderFileLine(file, width)
 		if current && i == m.selected {
+			line = m.renderPlainFileLine(file, width)
 			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
@@ -157,6 +158,13 @@ func (m model) renderFileLine(file git.FileStatus, width int) string {
 	label := statusStyle.Bold(true).Render(fmt.Sprintf("%-2s", status))
 	path := truncate(file.Path, max(1, width-lipgloss.Width(label)-1))
 	return label + " " + path
+}
+func (m model) renderPlainFileLine(file git.FileStatus, width int) string {
+	status := strings.TrimSpace(string([]byte{file.Index, file.Worktree}))
+	if status == "" {
+		status = "??"
+	}
+	return truncate(fmt.Sprintf("%-2s %s", status, file.Path), width)
 }
 func selectedLineStyle(focused bool, width int) lipgloss.Style {
 	if focused {

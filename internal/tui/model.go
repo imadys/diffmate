@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -14,6 +16,8 @@ type screenMode int
 const (
 	reviewMode screenMode = iota
 	commitMode
+	confirmMode
+	branchInputMode
 )
 
 type focusArea int
@@ -30,6 +34,14 @@ const (
 	branchesTab
 	commitsTab
 	stashTab
+)
+
+type confirmAction int
+
+const (
+	confirmNone confirmAction = iota
+	confirmDiscardChange
+	confirmDeleteBranch
 )
 
 type model struct {
@@ -65,6 +77,12 @@ type model struct {
 	tabMenuSelected int
 	commitMessage   string
 	commitError     string
+	cursorVisible   bool
+	confirmAction   confirmAction
+	confirmTitle    string
+	confirmMessage  string
+	branchNameInput string
+	inputError      string
 }
 
 type refreshMsg struct {
@@ -87,6 +105,7 @@ type suggestMsg struct {
 }
 
 type suggestTickMsg struct{}
+type cursorTickMsg struct{}
 
 func New(repo git.Repo) model {
 	userSettings, err := settings.Load()
@@ -147,14 +166,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.err
 		if msg.err == nil {
 			m.commitError = ""
+			m.inputError = ""
 			m.status = msg.status
 			if m.mode == commitMode {
 				m.mode = reviewMode
 				m.commitMessage = ""
 			}
+			if m.mode == branchInputMode {
+				m.mode = reviewMode
+				m.branchNameInput = ""
+			}
 		} else if m.mode == commitMode {
 			m.commitError = firstLine(msg.err.Error())
 			m.status = "commit failed"
+		} else if m.mode == branchInputMode {
+			m.inputError = firstLine(msg.err.Error())
+			m.status = "new branch failed"
 		}
 		return m, m.refresh()
 	case suggestMsg:
@@ -176,6 +203,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.suggestElapsed = int(time.Since(m.suggestStarted).Round(time.Second).Seconds())
 		return m, suggestTick()
+	case cursorTickMsg:
+		if (m.mode != commitMode && m.mode != branchInputMode) || m.suggesting {
+			return m, nil
+		}
+		m.cursorVisible = !m.cursorVisible
+		return m, cursorTick()
 	case tea.KeyMsg:
 		if m.showWelcome {
 			return m.updateWelcomeMode(msg)
@@ -189,6 +222,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.mode == commitMode {
 			return m.updateCommitMode(msg)
+		}
+		if m.mode == confirmMode {
+			return m.updateConfirmMode(msg)
+		}
+		if m.mode == branchInputMode {
+			return m.updateBranchInputMode(msg)
 		}
 		return m.updateReviewMode(msg)
 	}
@@ -300,7 +339,17 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.scrollDiff(1)
 	case "pgup", "b", "ctrl+u":
 		m.scrollDiff(-m.diffHeight())
-	case "pgdown", "f", " ", "ctrl+d":
+	case "pgdown", "f", "ctrl+d":
+		m.scrollDiff(m.diffHeight())
+	case " ":
+		if m.focus == sidebarFocus {
+			switch m.tab {
+			case changesTab:
+				return m, m.toggleStage()
+			case branchesTab:
+				return m, m.checkoutBranch()
+			}
+		}
 		m.scrollDiff(m.diffHeight())
 	case "g", "home":
 		m.diffOffset = 0
@@ -309,6 +358,9 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.diffViewport.GotoBottom()
 		m.diffOffset = m.diffViewport.YOffset
 	case "s":
+		if m.focus == sidebarFocus && m.tab == changesTab {
+			return m, m.stashChanges()
+		}
 		return m, m.stage()
 	case "u":
 		return m, m.unstage()
@@ -316,12 +368,37 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.stageAll()
 	case "U":
 		return m, m.unstageAll()
+	case "D":
+		if m.focus == sidebarFocus && m.tab == changesTab {
+			m.openConfirm(confirmDiscardChange, "Discard change", "Discard all changes for "+m.selectedChangeLabel()+"?")
+			return m, nil
+		}
+	case "n":
+		if m.focus == sidebarFocus && m.tab == branchesTab {
+			m.mode = branchInputMode
+			m.branchNameInput = ""
+			m.cursorVisible = true
+			m.inputError = ""
+			m.status = "new branch"
+			return m, cursorTick()
+		}
+	case "d":
+		if m.focus == sidebarFocus && m.tab == branchesTab {
+			if len(m.branches) > 0 && m.branches[m.branchSelected].Current {
+				m.err = errors.New("checkout another branch before deleting the current branch")
+				m.status = "cannot delete current branch"
+				return m, nil
+			}
+			m.openConfirm(confirmDeleteBranch, "Delete branch", "Delete branch "+m.selectedBranchName()+"?")
+			return m, nil
+		}
 	case "c":
 		m.mode = commitMode
+		m.cursorVisible = true
 		m.err = nil
 		m.commitError = ""
 		m.status = "write commit message"
-		return m, nil
+		return m, cursorTick()
 	case "p":
 		m.loading = true
 		m.status = "pushing"
@@ -389,6 +466,58 @@ func (m model) updateCommitMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	return m, nil
+}
+
+func (m model) updateConfirmMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "n":
+		m.closeConfirm("cancelled")
+		return m, nil
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "y", "enter", " ":
+		action := m.confirmAction
+		m.closeConfirm("confirmed")
+		switch action {
+		case confirmDiscardChange:
+			return m, m.discardChange()
+		case confirmDeleteBranch:
+			return m, m.deleteBranch()
+		default:
+			return m, nil
+		}
+	}
+	return m, nil
+}
+
+func (m model) updateBranchInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.mode = reviewMode
+		m.branchNameInput = ""
+		m.inputError = ""
+		m.status = "new branch cancelled"
+		return m, nil
+	case "ctrl+c":
+		return m, tea.Quit
+	case "enter":
+		return m, m.createBranch()
+	case "backspace":
+		m.inputError = ""
+		if len(m.branchNameInput) > 0 {
+			runes := []rune(m.branchNameInput)
+			m.branchNameInput = string(runes[:len(runes)-1])
+		}
+	case " ":
+		m.inputError = ""
+		m.branchNameInput += " "
+	default:
+		if msg.Type == tea.KeyRunes {
+			m.inputError = ""
+			m.branchNameInput += msg.String()
+		}
+	}
 	return m, nil
 }
 
@@ -572,6 +701,36 @@ func (m *model) moveSidebarSelection(delta int) {
 	case stashTab:
 		m.stashSelected = clamp(m.stashSelected+delta, 0, max(0, len(m.stashes)-1))
 	}
+}
+
+func (m *model) openConfirm(action confirmAction, title, message string) {
+	m.mode = confirmMode
+	m.confirmAction = action
+	m.confirmTitle = title
+	m.confirmMessage = message
+	m.status = "confirm " + strings.ToLower(title)
+}
+
+func (m *model) closeConfirm(status string) {
+	m.mode = reviewMode
+	m.confirmAction = confirmNone
+	m.confirmTitle = ""
+	m.confirmMessage = ""
+	m.status = status
+}
+
+func (m model) selectedChangeLabel() string {
+	if len(m.files) == 0 {
+		return "selected file"
+	}
+	return m.files[m.selected].Path
+}
+
+func (m model) selectedBranchName() string {
+	if len(m.branches) == 0 {
+		return "selected branch"
+	}
+	return m.branches[m.branchSelected].Name
 }
 
 func (m *model) clampSidebarSelections() {
