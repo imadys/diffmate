@@ -48,7 +48,21 @@ a full Git client.
 
 ## Install
 
-For now:
+Without installing Go:
+
+```sh
+curl -fsSL https://diffmate.imadys.dev/install.sh | sh
+```
+
+Manual install from GitHub Releases:
+
+```sh
+curl -L https://github.com/imadys/diffmate/releases/latest/download/diffmate-linux-amd64.tar.gz -o diffmate.tar.gz
+tar -xzf diffmate.tar.gz
+sudo install -m 755 diffmate /usr/local/bin/diffmate
+```
+
+With Go:
 
 ```sh
 go install github.com/imadys/diffmate/cmd/diffmate@latest
@@ -195,7 +209,6 @@ go run ./cmd/diffmate review
 - Stage and unstage individual hunks.
 - Toggle staged, unstaged, and all-changes views.
 - Watch the repository and refresh automatically.
-- Generate release binaries.
 - Add Homebrew packaging.
 
 ## License
