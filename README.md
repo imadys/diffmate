@@ -12,17 +12,17 @@ agent without leaving the keyboard.
 ## Preview
 
 <p align="center">
-  <img src="./assets/screenshot-1.png" alt="Diffmate review screen">
+  <img src="./assets/screenshot-1.png" alt="Diffmate review screen" width="100%">
 </p>
 
 <p align="center">
-  <img src="./assets/gif-1.gif" alt="Diffmate demo 1">
+  <img src="./assets/gif-1.gif" alt="Diffmate demo 1" width="100%">
 </p>
 <p align="center">
-  <img src="./assets/gif-2.gif" alt="Diffmate demo 2">
-  </p>
+  <img src="./assets/gif-2.gif" alt="Diffmate demo 2" width="100%">
+</p>
 <p align="center">
-  <img src="./assets/gif-3.gif" alt="Diffmate demo 3">
+  <img src="./assets/gif-3.gif" alt="Diffmate demo 3" width="100%">
 </p>
 
 ## Why
