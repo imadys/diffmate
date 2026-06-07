@@ -16,9 +16,13 @@ agent without leaving the keyboard.
 </p>
 
 <p align="center">
-  <img src="./assets/gif-1.gif" alt="Diffmate demo 1" width="31%">
-  <img src="./assets/gif-2.gif" alt="Diffmate demo 2" width="31%">
-  <img src="./assets/gif-3.gif" alt="Diffmate demo 3" width="31%">
+  <img src="./assets/gif-1.gif" alt="Diffmate demo 1">
+</p>
+<p align="center">
+  <img src="./assets/gif-2.gif" alt="Diffmate demo 2">
+  </p>
+<p align="center">
+  <img src="./assets/gif-3.gif" alt="Diffmate demo 3">
 </p>
 
 ## Why
