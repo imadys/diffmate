@@ -167,7 +167,7 @@ func (m model) renderCommitBox() string {
 	if m.suggesting {
 		help = mutedStyle.Render(fmt.Sprintf("asking %s for a commit message... %ds", m.settings.Agent, m.suggestElapsed))
 	} else {
-		help = mutedStyle.Render("ctrl+g suggest  ctrl+s commit  esc cancel")
+		help = mutedStyle.Render("ctrl+g suggest  ctrl+s commit  ctrl+d clear  esc cancel")
 	}
 	if m.commitError != "" {
 		help = errorStyle.Render(m.commitError) + "\n" + help

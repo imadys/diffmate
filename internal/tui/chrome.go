@@ -37,6 +37,7 @@ func (m model) keySegments() []keySegment {
 			{"enter", "newline"},
 			{"ctrl+g", m.settings.Agent + " suggest"},
 			{"ctrl+s", "commit"},
+			{"ctrl+d", "clear"},
 			{"esc", "cancel"},
 		}
 	}

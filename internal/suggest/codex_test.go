@@ -26,6 +26,43 @@ func TestAgentErrorLineSkipsCodexBanner(t *testing.T) {
 	}
 }
 
+func TestAgentErrorLineSkipsSeparators(t *testing.T) {
+	message := agentErrorLine("OpenAI Codex v0.137.0\n--------\nError: failed to initialize")
+
+	if message != "Error: failed to initialize" {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
+func TestAgentErrorLineIgnoresSourceCode(t *testing.T) {
+	message := agentErrorLine("OpenAI Codex v0.137.0\n--------\nmessage = err.Error()\nreturn message")
+
+	if message != "agent command failed; check CLI auth, model, or sandbox settings" {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
+func TestAgentErrorLineExtractsJSONError(t *testing.T) {
+	message := agentErrorLine(`ERROR: {"type":"error","status":400,"error":{"message":"model is not supported"}}`)
+
+	if message != "model is not supported" {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
+func TestCodexRunnerUsesAccountDefaultModel(t *testing.T) {
+	runner, err := runnerForAgent("codex", ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, arg := range runner.args {
+		if arg == "--model" || arg == "-m" {
+			t.Fatalf("expected codex runner to avoid explicit model, found %q at %d", arg, i)
+		}
+	}
+}
+
 func TestGeminiResponseExtractsJSONResponse(t *testing.T) {
 	message := geminiResponse(`{"response":"feat(tui): improve commit modal"}`)
 

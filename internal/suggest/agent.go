@@ -86,7 +86,6 @@ func runnerForAgent(agent, repoRoot string) (agentRunner, error) {
 				"--cd", repoRoot,
 				"--sandbox", "read-only",
 				"--color", "never",
-				"--model", "codex-mini-latest",
 				"--output-last-message", outputPath,
 				"-",
 			},
@@ -209,15 +208,91 @@ func firstLine(message string) string {
 }
 
 func agentErrorLine(message string) string {
+	fallback := ""
 	for _, line := range strings.Split(message, "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "WARNING:") {
+		if isAgentNoiseLine(line) {
 			continue
+		}
+		if parsed := jsonErrorMessage(line); parsed != "" {
+			return parsed
 		}
 		if strings.HasPrefix(line, "OpenAI Codex ") || strings.HasPrefix(line, "Codex ") {
 			continue
 		}
-		return line
+		if isActionableAgentError(line) {
+			return line
+		}
+		if fallback == "" && !looksLikeSourceLine(line) {
+			fallback = line
+		}
 	}
-	return "unknown error"
+	if fallback != "" {
+		return fallback
+	}
+	return "agent command failed; check CLI auth, model, or sandbox settings"
+}
+
+func isSeparatorLine(line string) bool {
+	if len(line) < 3 {
+		return false
+	}
+	for _, r := range line {
+		if r != '-' && r != '=' && r != '_' {
+			return false
+		}
+	}
+	return true
+}
+
+func isAgentNoiseLine(line string) bool {
+	if line == "" || strings.HasPrefix(line, "WARNING:") || isSeparatorLine(line) {
+		return true
+	}
+	switch strings.TrimSuffix(line, ":") {
+	case "Rules", "Diff":
+		return true
+	default:
+		return false
+	}
+}
+
+func isActionableAgentError(line string) bool {
+	lower := strings.ToLower(line)
+	return strings.HasPrefix(lower, "error:") ||
+		strings.HasPrefix(lower, "error ") ||
+		strings.HasPrefix(lower, "failed ") ||
+		strings.Contains(lower, " failed ") ||
+		strings.Contains(lower, "operation not permitted") ||
+		strings.Contains(lower, "model not found") ||
+		strings.Contains(lower, "no prompt provided") ||
+		strings.Contains(lower, "not logged in") ||
+		strings.Contains(lower, "unauthorized")
+}
+
+func looksLikeSourceLine(line string) bool {
+	return strings.Contains(line, " = ") ||
+		strings.Contains(line, " := ") ||
+		strings.HasPrefix(line, "func ") ||
+		strings.HasPrefix(line, "return ") ||
+		strings.HasPrefix(line, "if ") ||
+		strings.HasPrefix(line, "case ") ||
+		strings.HasPrefix(line, "-") ||
+		strings.HasPrefix(line, "+")
+}
+
+func jsonErrorMessage(line string) string {
+	payload := strings.TrimSpace(strings.TrimPrefix(line, "ERROR:"))
+	if payload == line {
+		return ""
+	}
+	var envelope struct {
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(payload), &envelope); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(envelope.Error.Message)
 }

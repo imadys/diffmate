@@ -348,6 +348,11 @@ func (m model) updateCommitMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "ctrl+s":
 		return m, m.commit()
+	case "ctrl+d":
+		m.commitMessage = ""
+		m.commitError = ""
+		m.status = "commit message cleared"
+		return m, nil
 	case "ctrl+g":
 		m.suggesting = true
 		m.suggestStarted = time.Now()
@@ -357,16 +362,20 @@ func (m model) updateCommitMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = "asking " + m.settings.Agent + " for commit message"
 		return m, tea.Batch(m.suggestCommitMessage(), suggestTick())
 	case "enter":
+		m.commitError = ""
 		m.commitMessage += "\n"
 	case "backspace":
+		m.commitError = ""
 		if len(m.commitMessage) > 0 {
 			runes := []rune(m.commitMessage)
 			m.commitMessage = string(runes[:len(runes)-1])
 		}
 	case " ":
+		m.commitError = ""
 		m.commitMessage += " "
 	default:
 		if msg.Type == tea.KeyRunes {
+			m.commitError = ""
 			m.commitMessage += msg.String()
 		}
 	}
