@@ -13,13 +13,12 @@ func (m model) renderSidebar(width, height int) string {
 		return panelStyle.Width(width).Height(height).Render(mutedStyle.Render("No sections visible"))
 	}
 
-	gapCount := max(0, len(tabs)-1)
-	heights := splitHeights(max(1, height-gapCount), len(tabs))
+	heights := splitHeights(height, len(tabs))
 	cards := make([]string, 0, len(tabs))
 	for i, tab := range tabs {
 		cards = append(cards, m.renderSectionCard(tab, width, heights[i]))
 	}
-	return strings.Join(cards, "\n")
+	return fitLines(strings.Split(strings.Join(cards, "\n"), "\n"), height)
 }
 func (m model) renderSectionCard(tab sidebarTab, width, height int) string {
 	if height <= 0 {
@@ -37,16 +36,17 @@ func (m model) renderSectionCard(tab sidebarTab, width, height int) string {
 
 	innerWidth := max(1, width-4)
 	innerHeight := max(1, height-2)
+	contentWidth := max(1, innerWidth-2)
 	lines := []string{title}
 	switch tab {
 	case changesTab:
-		lines = append(lines, m.renderChangeItems(width, innerHeight-1, current, focused)...)
+		lines = append(lines, m.renderChangeItems(contentWidth, innerHeight-1, current, focused)...)
 	case branchesTab:
-		lines = append(lines, m.renderBranchItems(width, innerHeight-1, current, focused)...)
+		lines = append(lines, m.renderBranchItems(contentWidth, innerHeight-1, current, focused)...)
 	case commitsTab:
-		lines = append(lines, m.renderCommitItems(width, innerHeight-1, current, focused)...)
+		lines = append(lines, m.renderCommitItems(contentWidth, innerHeight-1, current, focused)...)
 	case stashTab:
-		lines = append(lines, m.renderStashItems(width, innerHeight-1, current, focused)...)
+		lines = append(lines, m.renderStashItems(contentWidth, innerHeight-1, current, focused)...)
 	}
 	border := lipgloss.Color("238")
 	if focused {
@@ -72,9 +72,9 @@ func (m model) renderChangeItems(width, height int, current, focused bool) []str
 	lines := make([]string, 0, len(visibleFiles))
 	for visibleIndex, file := range visibleFiles {
 		i := m.fileOffset + visibleIndex
-		line := m.renderFileLine(file, width-4)
+		line := m.renderFileLine(file, width)
 		if current && i == m.selected {
-			line = selectedLineStyle(focused, width-4).Render(line)
+			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
 	}
@@ -90,9 +90,9 @@ func (m model) renderBranchItems(width, height int, current, focused bool) []str
 		if branch.Current {
 			prefix = "* "
 		}
-		line := truncate(prefix+branch.Name, width-4)
+		line := truncate(prefix+branch.Name, width)
 		if current && i == m.branchSelected {
-			line = selectedLineStyle(focused, width-4).Render(line)
+			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
 	}
@@ -104,9 +104,9 @@ func (m model) renderCommitItems(width, height int, current, focused bool) []str
 	}
 	lines := make([]string, 0, min(height, len(m.commits)))
 	for i, commit := range m.commits[:min(height, len(m.commits))] {
-		line := truncate(commit.Hash+" "+commit.Subject, width-4)
+		line := truncate(commit.Hash+" "+commit.Subject, width)
 		if current && i == m.commitSelected {
-			line = selectedLineStyle(focused, width-4).Render(line)
+			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
 	}
@@ -118,9 +118,9 @@ func (m model) renderStashItems(width, height int, current, focused bool) []stri
 	}
 	lines := make([]string, 0, min(height, len(m.stashes)))
 	for i, stash := range m.stashes[:min(height, len(m.stashes))] {
-		line := truncate(stash.Name+" "+stash.Subject, width-4)
+		line := truncate(stash.Name+" "+stash.Subject, width)
 		if current && i == m.stashSelected {
-			line = selectedLineStyle(focused, width-4).Render(line)
+			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
 	}

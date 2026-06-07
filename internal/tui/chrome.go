@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (m model) renderHeader() string {
+func (m model) renderHeader(width int) string {
 	count := fmt.Sprintf("%d files", len(m.files))
 	if len(m.files) == 1 {
 		count = "1 file"
@@ -17,11 +17,11 @@ func (m model) renderHeader() string {
 
 	left := subtleStyle.Render("review before commit")
 	right := subtleStyle.Render(m.repoName() + "  " + count)
-	if lipgloss.Width(left)+lipgloss.Width(right)+1 > m.width {
-		return headerStyle.Width(m.width).Render(truncate(left, m.width))
+	if lipgloss.Width(left)+lipgloss.Width(right)+1 > width {
+		return headerStyle.Width(width).Render(truncate(left, width))
 	}
-	spacer := strings.Repeat(" ", max(1, m.width-lipgloss.Width(left)-lipgloss.Width(right)))
-	return headerStyle.Width(m.width).Render(left + spacer + right)
+	spacer := strings.Repeat(" ", max(1, width-lipgloss.Width(left)-lipgloss.Width(right)))
+	return headerStyle.Width(width).Render(left + spacer + right)
 }
 func (m model) repoName() string {
 	name := filepath.Base(m.repo.Root)
@@ -72,11 +72,11 @@ type keySegment struct {
 	label string
 }
 
-func (m model) renderKeySegments(segments []keySegment) string {
+func (m model) renderKeySegments(width int) string {
 	logo := miniLogo()
-	content := keyStyle.Render("c") + " commit  " + keyStyle.Render("p") + " push  " + keyStyle.Render("S") + " stage all  " + keyStyle.Render("U") + " unstage all  " + keyStyle.Render("o") + " editor  " + keyStyle.Render("a") + " agent  " + keyStyle.Render(",") + " config  " + keyStyle.Render("?") + " keymap"
-	available := max(1, m.width-lipgloss.Width(logo)-2)
-	return keyBarStyle.Width(m.width).Render(logo + " " + truncate(content, available))
+	status := m.footerStatus()
+	content := logo + " " + status + "  " + keyStyle.Render("c") + " commit  " + keyStyle.Render("p") + " push  " + keyStyle.Render("S") + " stage all  " + keyStyle.Render("U") + " unstage all  " + keyStyle.Render("o") + " editor  " + keyStyle.Render("a") + " agent  " + keyStyle.Render(",") + " config  " + keyStyle.Render("?") + " keymap  " + keyStyle.Render("q") + " quit"
+	return keyBarStyle.Width(width).Render(truncate(content, max(1, width-2)))
 }
 func suggestTick() tea.Cmd {
 	return tea.Tick(time.Second, func(time.Time) tea.Msg {
@@ -92,7 +92,11 @@ func firstLine(message string) string {
 	}
 	return "unknown error"
 }
-func (m model) renderFooter() string {
+func (m model) renderFooter(width int) string {
+	return m.renderKeySegments(width)
+}
+
+func (m model) footerStatus() string {
 	status := m.status
 	if m.loading {
 		status = "loading"
@@ -103,19 +107,12 @@ func (m model) renderFooter() string {
 	if status == "" {
 		status = "ready"
 	}
-
-	right := "q quit"
 	if m.mode == commitMode {
-		right = "commit mode"
+		status = "commit mode"
 	} else if m.showHelp {
-		right = "help"
+		status = "help"
 	}
-
-	leftWidth := max(0, m.width-len(right)-4)
-	left := truncate(status, leftWidth)
-	spacer := strings.Repeat(" ", max(1, m.width-lipgloss.Width(left)-len(right)-2))
-	statusLine := statusStyle.Width(m.width).Render(left + spacer + right)
-	return statusLine + "\n" + m.renderKeySegments(m.keySegments())
+	return status
 }
 func miniLogo() string {
 	return titleStyle.Render("diffmate")

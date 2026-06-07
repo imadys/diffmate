@@ -59,7 +59,7 @@ func CommitMessage(ctx context.Context, repoRoot, agent, diff string) (string, e
 		if message == "" {
 			message = err.Error()
 		}
-		return fmt.Sprintf("%s could not suggest a commit message: %s", agent, firstLine(message)), nil
+		return fmt.Sprintf("%s could not suggest a commit message: %s", agent, agentErrorLine(message)), nil
 	}
 
 	suggestion := cleanCommitMessage(out)
@@ -204,6 +204,20 @@ func firstLine(message string) string {
 		if line != "" && !strings.HasPrefix(line, "WARNING:") {
 			return line
 		}
+	}
+	return "unknown error"
+}
+
+func agentErrorLine(message string) string {
+	for _, line := range strings.Split(message, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "WARNING:") {
+			continue
+		}
+		if strings.HasPrefix(line, "OpenAI Codex ") || strings.HasPrefix(line, "Codex ") {
+			continue
+		}
+		return line
 	}
 	return "unknown error"
 }

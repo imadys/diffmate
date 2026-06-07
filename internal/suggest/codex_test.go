@@ -18,6 +18,14 @@ func TestFirstLineSkipsWarnings(t *testing.T) {
 	}
 }
 
+func TestAgentErrorLineSkipsCodexBanner(t *testing.T) {
+	message := agentErrorLine("WARNING: ignored\nOpenAI Codex v0.137.0\nerror: model not found\nextra")
+
+	if message != "error: model not found" {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
 func TestGeminiResponseExtractsJSONResponse(t *testing.T) {
 	message := geminiResponse(`{"response":"feat(tui): improve commit modal"}`)
 

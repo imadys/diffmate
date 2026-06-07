@@ -10,6 +10,7 @@ import (
 func (m model) renderDiff(width, height int) string {
 	innerWidth := max(1, width-4)
 	innerHeight := max(1, height-2)
+	contentWidth := max(1, innerWidth-2)
 	lines := m.diffLines()
 	if strings.TrimSpace(m.diff) == "" {
 		lines = []string{mutedStyle.Render("Select a changed file to view its diff.")}
@@ -26,12 +27,12 @@ func (m model) renderDiff(width, height int) string {
 	title := m.previewTitle()
 	if title != "" {
 		scroll := fmt.Sprintf("  %d/%d", min(m.diffOffset+1, len(lines)), max(1, len(lines)))
-		header = subtleStyle.Render(truncate(title, max(1, innerWidth-len(scroll)))) + mutedStyle.Render(scroll)
+		header = subtleStyle.Render(truncate(title, max(1, contentWidth-len(scroll)))) + mutedStyle.Render(scroll)
 	}
 
 	out := append([]string{header}, visible...)
 	for i := 1; i < len(out); i++ {
-		out[i] = colorDiffLine(truncate(out[i], innerWidth), m.selectedFilePath())
+		out[i] = colorDiffLine(truncate(out[i], contentWidth), m.selectedFilePath())
 	}
 
 	border := lipgloss.Color("238")
@@ -39,13 +40,14 @@ func (m model) renderDiff(width, height int) string {
 		border = lipgloss.Color("86")
 	}
 
-	return lipgloss.NewStyle().
+	box := lipgloss.NewStyle().
 		Width(innerWidth).
 		Height(innerHeight).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(border).
 		Padding(0, 1).
 		Render(fitLines(out, innerHeight))
+	return fitLines(strings.Split(box, "\n"), height)
 }
 func (m model) diffHeight() int {
 	return max(1, m.height-6)
@@ -67,7 +69,10 @@ func (m model) diffLines() []string {
 	if m.diff == "" {
 		return []string{""}
 	}
-	return strings.Split(m.diff, "\n")
+	// Expand tabs to spaces so lipgloss width measurements match what the
+	// terminal actually renders (a raw tab counts as 1 column here but expands
+	// to several on screen, which would wrap lines and break the layout).
+	return strings.Split(strings.ReplaceAll(m.diff, "\t", "    "), "\n")
 }
 func (m model) visibleFiles(count int) []git.FileStatus {
 	if count <= 0 || len(m.files) == 0 {
