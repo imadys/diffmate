@@ -61,6 +61,7 @@ The review screen uses a bento-style terminal layout:
 - Changes, branches, commits, and stash live in numbered sidebar cards.
 - The diff panel fills the remaining terminal width.
 - The footer keeps the main workflow shortcuts visible.
+- The screen refreshes automatically every 3 minutes when no modal is open.
 
 ## Config
 
@@ -118,6 +119,8 @@ prompt mode yet, `diffmate` shows a placeholder instead of blocking the modal.
 | `s`                              | Stash changes in Changes                            |
 | `D`                              | Reset selected change with confirmation             |
 | `n`                              | Create a new branch in Branches                     |
+| `m`                              | Pick a branch to merge into the current branch      |
+| `u`                              | Update current branch from upstream                 |
 | `d`                              | Delete selected branch with confirmation            |
 | `c`                              | Open commit message box                             |
 | `ctrl+g`                         | Suggest a commit message with preferred agent       |

@@ -51,6 +51,14 @@ func (m model) keySegments() []keySegment {
 		}
 	}
 
+	if m.mode == mergePickerMode {
+		return []keySegment{
+			{"j/k", "branch"},
+			{"enter", "merge"},
+			{"esc", "cancel"},
+		}
+	}
+
 	if m.showHelp {
 		return []keySegment{
 			{"?", "hide help"},
@@ -82,6 +90,8 @@ func (m model) keySegments() []keySegment {
 	case branchesTab:
 		return []keySegment{
 			{"space", "checkout"},
+			{"m", "merge"},
+			{"u", "upstream"},
 			{"n", "new branch"},
 			{"d", "delete"},
 			{"?", "keymap"},
@@ -129,6 +139,11 @@ func cursorTick() tea.Cmd {
 		return cursorTickMsg{}
 	})
 }
+func autoRefreshTick() tea.Cmd {
+	return tea.Tick(3*time.Minute, func(time.Time) tea.Msg {
+		return autoRefreshMsg{}
+	})
+}
 func firstLine(message string) string {
 	for _, line := range strings.Split(message, "\n") {
 		line = strings.TrimSpace(line)
@@ -159,6 +174,8 @@ func (m model) footerStatus() string {
 		status = "confirm"
 	} else if m.mode == branchInputMode {
 		status = "new branch"
+	} else if m.mode == mergePickerMode {
+		status = "merge"
 	} else if m.showHelp {
 		status = "help"
 	}

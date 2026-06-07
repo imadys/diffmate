@@ -158,6 +158,23 @@ func (m model) deleteBranch() tea.Cmd {
 		return actionMsg{status: "deleted branch " + branch.Name, err: err}
 	}
 }
+func (m model) mergeSelectedBranch() tea.Cmd {
+	if len(m.branches) == 0 {
+		return nil
+	}
+	branch := m.branches[m.mergeSelected]
+	return func() tea.Msg {
+		err := m.repo.MergeBranch(context.Background(), branch)
+		return actionMsg{status: "merged " + branch.Name + " into " + m.currentBranchName(), err: err}
+	}
+}
+func (m model) updateFromUpstream() tea.Cmd {
+	current := m.currentBranchName()
+	return func() tea.Msg {
+		err := m.repo.PullUpstream(context.Background())
+		return actionMsg{status: "updated " + current + " from upstream", err: err}
+	}
+}
 func (m model) commit() tea.Cmd {
 	message := strings.TrimSpace(m.commitMessage)
 	return func() tea.Msg {

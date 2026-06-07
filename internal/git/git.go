@@ -283,10 +283,29 @@ func (r Repo) DeleteBranch(ctx context.Context, branch Branch) error {
 	if branch.Name == "" {
 		return errors.New("branch name cannot be empty")
 	}
+	if branch.Name == "main" || branch.Name == "master" {
+		return errors.New("main and master are protected branches")
+	}
 	if branch.Current {
 		return errors.New("cannot delete the current branch")
 	}
 	_, err := run(ctx, r.Root, "branch", "-d", branch.Name)
+	return err
+}
+
+func (r Repo) MergeBranch(ctx context.Context, branch Branch) error {
+	if branch.Name == "" {
+		return errors.New("branch name cannot be empty")
+	}
+	if branch.Current {
+		return errors.New("cannot merge the current branch into itself")
+	}
+	_, err := run(ctx, r.Root, "merge", branch.Name)
+	return err
+}
+
+func (r Repo) PullUpstream(ctx context.Context) error {
+	_, err := run(ctx, r.Root, "pull", "--ff-only")
 	return err
 }
 

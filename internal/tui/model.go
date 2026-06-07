@@ -18,6 +18,7 @@ const (
 	commitMode
 	confirmMode
 	branchInputMode
+	mergePickerMode
 )
 
 type focusArea int
@@ -82,6 +83,7 @@ type model struct {
 	confirmTitle    string
 	confirmMessage  string
 	branchNameInput string
+	mergeSelected   int
 	inputError      string
 }
 
@@ -106,6 +108,7 @@ type suggestMsg struct {
 
 type suggestTickMsg struct{}
 type cursorTickMsg struct{}
+type autoRefreshMsg struct{}
 
 func New(repo git.Repo) model {
 	userSettings, err := settings.Load()
@@ -125,7 +128,7 @@ func New(repo git.Repo) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return m.refresh()
+	return tea.Batch(m.refresh(), autoRefreshTick())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -176,6 +179,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = reviewMode
 				m.branchNameInput = ""
 			}
+			if m.mode == mergePickerMode {
+				m.mode = reviewMode
+			}
 		} else if m.mode == commitMode {
 			m.commitError = firstLine(msg.err.Error())
 			m.status = "commit failed"
@@ -209,6 +215,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.cursorVisible = !m.cursorVisible
 		return m, cursorTick()
+	case autoRefreshMsg:
+		if m.mode != reviewMode || m.showWelcome || m.showTabs || m.showHelp || m.loading {
+			return m, autoRefreshTick()
+		}
+		m.status = "auto refreshing"
+		return m, tea.Batch(m.refresh(), autoRefreshTick())
 	case tea.KeyMsg:
 		if m.showWelcome {
 			return m.updateWelcomeMode(msg)
@@ -228,6 +240,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.mode == branchInputMode {
 			return m.updateBranchInputMode(msg)
+		}
+		if m.mode == mergePickerMode {
+			return m.updateMergePickerMode(msg)
 		}
 		return m.updateReviewMode(msg)
 	}
@@ -363,6 +378,9 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.stage()
 	case "u":
+		if m.focus == sidebarFocus && m.tab == branchesTab {
+			return m, m.updateFromUpstream()
+		}
 		return m, m.unstage()
 	case "S":
 		return m, m.stageAll()
@@ -384,12 +402,35 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "d":
 		if m.focus == sidebarFocus && m.tab == branchesTab {
+			if isProtectedBranch(m.selectedBranchName()) {
+				m.err = errors.New("main and master are protected branches")
+				m.status = "protected branch"
+				return m, nil
+			}
 			if len(m.branches) > 0 && m.branches[m.branchSelected].Current {
 				m.err = errors.New("checkout another branch before deleting the current branch")
 				m.status = "cannot delete current branch"
 				return m, nil
 			}
 			m.openConfirm(confirmDeleteBranch, "Delete branch", "Delete branch "+m.selectedBranchName()+"?")
+			return m, nil
+		}
+	case "m":
+		if m.focus == sidebarFocus && m.tab == branchesTab {
+			if isProtectedBranch(m.currentBranchName()) {
+				m.err = errors.New("main and master are protected from receiving merges in diffmate")
+				m.status = "protected branch"
+				return m, nil
+			}
+			if len(m.branches) <= 1 {
+				m.err = errors.New("no other branch available to merge")
+				m.status = "merge unavailable"
+				return m, nil
+			}
+			m.mode = mergePickerMode
+			m.mergeSelected = m.defaultMergeSelection()
+			m.err = nil
+			m.status = "select branch to merge"
 			return m, nil
 		}
 	case "c":
@@ -517,6 +558,24 @@ func (m model) updateBranchInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inputError = ""
 			m.branchNameInput += msg.String()
 		}
+	}
+	return m, nil
+}
+
+func (m model) updateMergePickerMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.mode = reviewMode
+		m.status = "merge cancelled"
+		return m, nil
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "up", "k":
+		m.moveMergeSelection(-1)
+	case "down", "j":
+		m.moveMergeSelection(1)
+	case "enter", " ":
+		return m, m.mergeSelectedBranch()
 	}
 	return m, nil
 }
@@ -703,6 +762,20 @@ func (m *model) moveSidebarSelection(delta int) {
 	}
 }
 
+func (m *model) moveMergeSelection(delta int) {
+	if len(m.branches) == 0 {
+		return
+	}
+	next := m.mergeSelected
+	for range len(m.branches) {
+		next = (next + delta + len(m.branches)) % len(m.branches)
+		if !m.branches[next].Current {
+			m.mergeSelected = next
+			return
+		}
+	}
+}
+
 func (m *model) openConfirm(action confirmAction, title, message string) {
 	m.mode = confirmMode
 	m.confirmAction = action
@@ -731,6 +804,28 @@ func (m model) selectedBranchName() string {
 		return "selected branch"
 	}
 	return m.branches[m.branchSelected].Name
+}
+
+func (m model) currentBranchName() string {
+	for _, branch := range m.branches {
+		if branch.Current {
+			return branch.Name
+		}
+	}
+	return ""
+}
+
+func (m model) defaultMergeSelection() int {
+	for i, branch := range m.branches {
+		if !branch.Current {
+			return i
+		}
+	}
+	return 0
+}
+
+func isProtectedBranch(name string) bool {
+	return name == "main" || name == "master"
 }
 
 func (m *model) clampSidebarSelections() {

@@ -37,6 +37,9 @@ func (m model) View() string {
 	if m.mode == branchInputMode {
 		body = overlayCommitBox(body, m.renderBranchInputBox())
 	}
+	if m.mode == mergePickerMode {
+		body = overlayCommitBox(body, m.renderMergePickerBox())
+	}
 	if m.showHelp {
 		body = overlayCommitBox(body, m.renderHelpBox())
 	}

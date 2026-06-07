@@ -29,6 +29,8 @@ func (m model) renderHelpBox() string {
 		"D                  reset selected change with confirm",
 		"n                  new branch in branches",
 		"d                  delete branch with confirm",
+		"m                  merge selected branch into current branch",
+		"u                  update current branch from upstream",
 		"c                  open commit message box",
 		"p                  push current branch",
 		"o                  open preferred editor",
@@ -230,6 +232,40 @@ func (m model) renderBranchInputBox() string {
 		BorderForeground(lipgloss.Color("86")).
 		Padding(1, 2).
 		Render(strings.Join(lines, "\n"))
+}
+
+func (m model) renderMergePickerBox() string {
+	width := clamp(64, 42, max(42, m.width-8))
+	height := clamp(16, 8, max(8, m.height-8))
+	contentHeight := max(1, height-5)
+	offset := keepIndexVisible(m.mergeSelected, len(m.branches), contentHeight)
+	end := min(len(m.branches), offset+contentHeight)
+	lines := []string{
+		titleStyle.Render("Merge branch"),
+		mutedStyle.Render("into " + m.currentBranchName()),
+		"",
+	}
+
+	for i := offset; i < end; i++ {
+		branch := m.branches[i]
+		label := branch.Name
+		if branch.Current {
+			label = label + " " + mutedStyle.Render("(current)")
+		}
+		if i == m.mergeSelected {
+			label = selectedLineStyle(true, width-4).Render(label)
+		}
+		lines = append(lines, label)
+	}
+
+	lines = append(lines, "", mutedStyle.Render("enter merge  esc cancel"))
+	return lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("86")).
+		Padding(1, 2).
+		Render(fitLines(lines, height-2))
 }
 
 func inputCursor(visible bool) string {
