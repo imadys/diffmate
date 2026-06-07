@@ -41,6 +41,18 @@ func editorCommand(dir, path string) *exec.Cmd {
 	return cmd
 }
 
+func preferredEditorFileCommand(dir, command, path string) *exec.Cmd {
+	if command == "" {
+		return editorCommand(dir, path)
+	}
+	cmd := exec.Command(command, path)
+	cmd.Dir = dir
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd
+}
+
 func projectCommand(dir, command string) *exec.Cmd {
 	cmd := exec.Command(command, ".")
 	cmd.Dir = dir

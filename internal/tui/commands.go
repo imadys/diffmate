@@ -33,26 +33,63 @@ func (m model) refresh() tea.Cmd {
 		m.branches = branches
 		m.commits = commits
 		m.stashes = stashes
+		mergeInProgress := m.repo.MergeInProgress(ctx)
+		conflicts := conflictFiles(files)
 		m.clampSidebarSelections()
+
+		conflictContent := ""
+		if len(conflicts) > 0 {
+			selected := clamp(m.conflictSelected, 0, len(conflicts)-1)
+			conflictContent, err = m.repo.FileContent(ctx, conflicts[selected])
+			if err != nil {
+				return refreshMsg{files: files, branches: branches, commits: commits, stashes: stashes, mergeInProgress: mergeInProgress, err: err}
+			}
+		}
 
 		diff, err := m.preview(ctx)
 		if err != nil {
-			return refreshMsg{files: files, branches: branches, commits: commits, stashes: stashes, err: err}
+			return refreshMsg{files: files, branches: branches, commits: commits, stashes: stashes, mergeInProgress: mergeInProgress, err: err}
 		}
 
-		return refreshMsg{files: files, branches: branches, commits: commits, stashes: stashes, diff: diff}
+		return refreshMsg{files: files, branches: branches, commits: commits, stashes: stashes, diff: diff, conflictContent: conflictContent, mergeInProgress: mergeInProgress}
 	}
 }
 func (m model) loadDiff() tea.Cmd {
 	return func() tea.Msg {
 		diff, err := m.preview(context.Background())
 		return refreshMsg{
-			files:    m.files,
-			branches: m.branches,
-			commits:  m.commits,
-			stashes:  m.stashes,
-			diff:     diff,
-			err:      err,
+			files:           m.files,
+			branches:        m.branches,
+			commits:         m.commits,
+			stashes:         m.stashes,
+			diff:            diff,
+			mergeInProgress: m.mergeInProgress,
+			err:             err,
+		}
+	}
+}
+func (m model) loadConflictContent() tea.Cmd {
+	return func() tea.Msg {
+		if len(m.conflicts) == 0 {
+			return refreshMsg{
+				files:           m.files,
+				branches:        m.branches,
+				commits:         m.commits,
+				stashes:         m.stashes,
+				diff:            m.diff,
+				mergeInProgress: m.mergeInProgress,
+			}
+		}
+		content, err := m.repo.FileContent(context.Background(), m.conflicts[m.conflictSelected])
+		return refreshMsg{
+			files:           m.files,
+			branches:        m.branches,
+			commits:         m.commits,
+			stashes:         m.stashes,
+			diff:            m.diff,
+			conflictContent: content,
+			mergeInProgress: m.mergeInProgress,
+			err:             err,
 		}
 	}
 }
@@ -238,8 +275,49 @@ func (m model) openEditor() tea.Cmd {
 		return nil
 	}
 	file := m.files[m.selected]
-	return tea.ExecProcess(editorCommand(m.repo.Root, file.Path), func(err error) tea.Msg {
-		return actionMsg{status: "editor closed", err: err}
+	editor := m.settings.Editor
+	return tea.ExecProcess(preferredEditorFileCommand(m.repo.Root, editor, file.Path), func(err error) tea.Msg {
+		return actionMsg{status: "opened " + file.Path + " in " + editor, err: err}
+	})
+}
+func (m model) acceptOurs() tea.Cmd {
+	return m.withConflict("accepted ours", func(ctx context.Context, file git.FileStatus) error {
+		return m.repo.CheckoutOurs(ctx, file)
+	})
+}
+func (m model) acceptTheirs() tea.Cmd {
+	return m.withConflict("accepted theirs", func(ctx context.Context, file git.FileStatus) error {
+		return m.repo.CheckoutTheirs(ctx, file)
+	})
+}
+func (m model) stageConflict() tea.Cmd {
+	return m.withConflict("marked resolved", func(ctx context.Context, file git.FileStatus) error {
+		return m.repo.Stage(ctx, file)
+	})
+}
+func (m model) abortMerge() tea.Cmd {
+	return func() tea.Msg {
+		err := m.repo.AbortMerge(context.Background())
+		return actionMsg{status: "merge aborted", err: err}
+	}
+}
+func (m model) continueMerge() tea.Cmd {
+	return func() tea.Msg {
+		if len(m.conflicts) > 0 {
+			return actionMsg{status: "merge blocked", err: fmt.Errorf("%d unresolved conflict(s)", len(m.conflicts))}
+		}
+		err := m.repo.ContinueMerge(context.Background())
+		return actionMsg{status: "merge continued", err: err}
+	}
+}
+func (m model) openConflictEditor() tea.Cmd {
+	if len(m.conflicts) == 0 {
+		return nil
+	}
+	file := m.conflicts[m.conflictSelected]
+	editor := m.settings.Editor
+	return tea.ExecProcess(preferredEditorFileCommand(m.repo.Root, editor, file.Path), func(err error) tea.Msg {
+		return actionMsg{status: "opened " + file.Path + " in " + editor, err: err}
 	})
 }
 func (m model) withSelected(status string, fn func(context.Context, git.FileStatus) error) tea.Cmd {
@@ -247,6 +325,16 @@ func (m model) withSelected(status string, fn func(context.Context, git.FileStat
 		return nil
 	}
 	file := m.files[m.selected]
+	return func() tea.Msg {
+		err := fn(context.Background(), file)
+		return actionMsg{status: fmt.Sprintf("%s %s", status, file.Path), err: err}
+	}
+}
+func (m model) withConflict(status string, fn func(context.Context, git.FileStatus) error) tea.Cmd {
+	if len(m.conflicts) == 0 {
+		return nil
+	}
+	file := m.conflicts[m.conflictSelected]
 	return func() tea.Msg {
 		err := fn(context.Background(), file)
 		return actionMsg{status: fmt.Sprintf("%s %s", status, file.Path), err: err}

@@ -90,6 +90,19 @@ Press `,` inside the app to configure:
 
 Config is saved in your OS config directory under `diffmate/config.json`.
 
+## Merge Conflicts
+
+If a merge creates conflicts, `diffmate` switches into a focused conflict mode:
+
+- The left pane lists only conflicted files.
+- The right pane shows the selected file with conflict markers highlighted.
+- `o` accepts ours for the selected file.
+- `t` accepts theirs for the selected file.
+- `s` stages the selected file as resolved.
+- `e` opens the selected file in your editor.
+- `a` aborts the merge after confirmation.
+- `c` continues the merge once conflicts are resolved.
+
 ## Tech Stack
 
 - Go for the CLI and Git workflow logic.
@@ -155,6 +168,19 @@ prompt mode yet, `diffmate` shows a placeholder instead of blocking the modal.
 | `ctrl+l`                         | Clear console log history                           |
 | `?`                              | Show full keymap                                    |
 | `q`, `esc`                       | Quit                                                |
+
+Conflict mode:
+
+| Key        | Action                          |
+| ---------- | ------------------------------- |
+| `j`, `k`   | Move between conflicted files   |
+| `[`, `]`   | Scroll conflict view            |
+| `o`        | Accept ours for selected file   |
+| `t`        | Accept theirs for selected file |
+| `s`        | Stage selected file as resolved |
+| `e`        | Open selected file in editor    |
+| `a`        | Abort merge with confirmation   |
+| `c`        | Continue merge                  |
 
 ## Development
 

@@ -59,6 +59,28 @@ func (m model) keySegments() []keySegment {
 		}
 	}
 
+	if m.mode == conflictMode {
+		if len(m.conflicts) == 0 {
+			return []keySegment{
+				{"c", "continue"},
+				{"a", "abort"},
+				{"r", "refresh"},
+				{"?", "keymap"},
+			}
+		}
+		return []keySegment{
+			{"j/k", "file"},
+			{"[/]", "scroll"},
+			{"o", "ours"},
+			{"t", "theirs"},
+			{"s", "stage"},
+			{"e", "fix in editor"},
+			{"a", "abort"},
+			{"r", "refresh"},
+			{"?", "keymap"},
+		}
+	}
+
 	if m.showHelp {
 		return []keySegment{
 			{"?", "hide help"},
@@ -128,9 +150,11 @@ func (m model) renderKeySegments(width int) string {
 	for _, segment := range m.keySegments() {
 		parts = append(parts, keyStyle.Render(segment.key)+" "+segment.label)
 	}
-	parts = append(parts, keyStyle.Render("~")+" console")
-	if m.consoleVisible {
-		parts = append(parts, keyStyle.Render("ctrl+l")+" clear")
+	if m.mode != conflictMode {
+		parts = append(parts, keyStyle.Render("~")+" console")
+		if m.consoleVisible {
+			parts = append(parts, keyStyle.Render("ctrl+l")+" clear")
+		}
 	}
 	parts = append(parts, keyStyle.Render("q")+" quit")
 	content := strings.Join(parts, " | ")
@@ -180,6 +204,8 @@ func (m model) footerStatus() string {
 		status = "new branch"
 	} else if m.mode == mergePickerMode {
 		status = "merge"
+	} else if m.mode == conflictMode {
+		status = fmt.Sprintf("conflict %d", len(m.conflicts))
 	} else if m.showHelp {
 		status = "help"
 	}

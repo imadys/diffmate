@@ -32,6 +32,15 @@ func (f FileStatus) IsUntracked() bool {
 	return f.Index == '?' && f.Worktree == '?'
 }
 
+func (f FileStatus) IsConflict() bool {
+	switch string([]byte{f.Index, f.Worktree}) {
+	case "DD", "AU", "UD", "UA", "DU", "AA", "UU":
+		return true
+	default:
+		return false
+	}
+}
+
 type Repo struct {
 	Root string
 }
@@ -189,6 +198,42 @@ func (r Repo) StashDiff(ctx context.Context, stash Stash) (string, error) {
 
 func (r Repo) Stage(ctx context.Context, file FileStatus) error {
 	_, err := run(ctx, r.Root, "add", "--", file.Path)
+	return err
+}
+
+func (r Repo) FileContent(ctx context.Context, file FileStatus) (string, error) {
+	content, err := os.ReadFile(filepath.Join(r.Root, file.Path))
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
+}
+
+func (r Repo) CheckoutOurs(ctx context.Context, file FileStatus) error {
+	_, err := run(ctx, r.Root, "checkout", "--ours", "--", file.Path)
+	return err
+}
+
+func (r Repo) CheckoutTheirs(ctx context.Context, file FileStatus) error {
+	_, err := run(ctx, r.Root, "checkout", "--theirs", "--", file.Path)
+	return err
+}
+
+func (r Repo) AbortMerge(ctx context.Context) error {
+	_, err := run(ctx, r.Root, "merge", "--abort")
+	return err
+}
+
+func (r Repo) MergeInProgress(ctx context.Context) bool {
+	_, err := run(ctx, r.Root, "rev-parse", "-q", "--verify", "MERGE_HEAD")
+	return err == nil
+}
+
+func (r Repo) ContinueMerge(ctx context.Context) error {
+	if !r.MergeInProgress(ctx) {
+		return errors.New("no merge in progress")
+	}
+	_, err := run(ctx, r.Root, "commit", "--no-edit")
 	return err
 }
 

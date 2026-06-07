@@ -19,6 +19,7 @@ const (
 	confirmMode
 	branchInputMode
 	mergePickerMode
+	conflictMode
 )
 
 type focusArea int
@@ -45,59 +46,67 @@ const (
 	confirmDeleteBranch
 	confirmDeleteRemoteBranch
 	confirmDeleteBranchBoth
+	confirmAbortMerge
 )
 
 type model struct {
-	repo            git.Repo
+	repo             git.Repo
+	files            []git.FileStatus
+	branches         []git.Branch
+	commits          []git.Commit
+	stashes          []git.Stash
+	conflicts        []git.FileStatus
+	mergeInProgress  bool
+	selected         int
+	conflictSelected int
+	branchSelected   int
+	commitSelected   int
+	stashSelected    int
+	diff             string
+	diffOffset       int
+	diffViewport     viewport.Model
+	conflictContent  string
+	conflictViewport viewport.Model
+	width            int
+	height           int
+	err              error
+	status           string
+	loading          bool
+	suggesting       bool
+	suggestStarted   time.Time
+	suggestElapsed   int
+	mode             screenMode
+	focus            focusArea
+	tab              sidebarTab
+	settings         settings.Settings
+	showWelcome      bool
+	showHelp         bool
+	showTabs         bool
+	consoleVisible   bool
+	consoleLines     []string
+	configSection    int
+	tabsEnabled      [4]bool
+	tabMenuSelected  int
+	commitMessage    string
+	commitError      string
+	cursorVisible    bool
+	confirmAction    confirmAction
+	confirmTitle     string
+	confirmMessage   string
+	branchNameInput  string
+	mergeSelected    int
+	inputError       string
+}
+
+type refreshMsg struct {
 	files           []git.FileStatus
 	branches        []git.Branch
 	commits         []git.Commit
 	stashes         []git.Stash
-	selected        int
-	branchSelected  int
-	commitSelected  int
-	stashSelected   int
 	diff            string
-	diffOffset      int
-	diffViewport    viewport.Model
-	width           int
-	height          int
+	conflictContent string
+	mergeInProgress bool
 	err             error
-	status          string
-	loading         bool
-	suggesting      bool
-	suggestStarted  time.Time
-	suggestElapsed  int
-	mode            screenMode
-	focus           focusArea
-	tab             sidebarTab
-	settings        settings.Settings
-	showWelcome     bool
-	showHelp        bool
-	showTabs        bool
-	consoleVisible  bool
-	consoleLines    []string
-	configSection   int
-	tabsEnabled     [4]bool
-	tabMenuSelected int
-	commitMessage   string
-	commitError     string
-	cursorVisible   bool
-	confirmAction   confirmAction
-	confirmTitle    string
-	confirmMessage  string
-	branchNameInput string
-	mergeSelected   int
-	inputError      string
-}
-
-type refreshMsg struct {
-	files    []git.FileStatus
-	branches []git.Branch
-	commits  []git.Commit
-	stashes  []git.Stash
-	diff     string
-	err      error
 }
 
 type actionMsg struct {
@@ -142,6 +151,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.syncDiffViewport()
+		m.syncConflictViewport()
 		return m, nil
 	case refreshMsg:
 		m.loading = false
@@ -154,6 +164,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.branches = msg.branches
 		m.commits = msg.commits
 		m.stashes = msg.stashes
+		m.conflicts = conflictFiles(msg.files)
+		m.mergeInProgress = msg.mergeInProgress
+		if m.conflictSelected >= len(m.conflicts) {
+			m.conflictSelected = len(m.conflicts) - 1
+		}
+		if m.conflictSelected < 0 {
+			m.conflictSelected = 0
+		}
+		m.conflictContent = msg.conflictContent
+		if m.mergeInProgress && (m.mode == reviewMode || m.mode == mergePickerMode) {
+			m.mode = conflictMode
+			if len(m.conflicts) > 0 {
+				m.status = "merge conflict"
+			} else {
+				m.status = "merge ready"
+			}
+		}
+		if !m.mergeInProgress && m.mode == conflictMode {
+			m.mode = reviewMode
+			m.status = "conflicts resolved"
+		}
 		if m.selected >= len(m.files) {
 			m.selected = len(m.files) - 1
 		}
@@ -164,6 +195,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.diff = msg.diff
 		m.diffOffset = 0
 		m.syncDiffViewport()
+		m.syncConflictViewport()
 		m.updateDiffViewportContent()
 		m.diffViewport.GotoTop()
 		if len(m.files) == 0 {
@@ -228,7 +260,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cursorVisible = !m.cursorVisible
 		return m, cursorTick()
 	case autoRefreshMsg:
-		if m.mode != reviewMode || m.showWelcome || m.showTabs || m.showHelp || m.loading {
+		if (m.mode != reviewMode && m.mode != conflictMode) || m.showWelcome || m.showTabs || m.showHelp || m.loading {
 			return m, autoRefreshTick()
 		}
 		m.status = "auto refreshing"
@@ -256,6 +288,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.mode == mergePickerMode {
 			return m.updateMergePickerMode(msg)
 		}
+		if m.mode == conflictMode {
+			return m.updateConflictMode(msg)
+		}
 		return m.updateReviewMode(msg)
 	}
 
@@ -264,6 +299,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) updateWelcomeMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.showHelp = !m.showHelp
+		return m, nil
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	default:
@@ -582,6 +620,8 @@ func (m model) updateConfirmMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.deleteRemoteBranch()
 		case confirmDeleteBranchBoth:
 			return m, m.deleteBranchBoth()
+		case confirmAbortMerge:
+			return m, m.abortMerge()
 		default:
 			return m, nil
 		}
@@ -633,6 +673,55 @@ func (m model) updateMergePickerMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveMergeSelection(1)
 	case "enter", " ":
 		return m, m.mergeSelectedBranch()
+	}
+	return m, nil
+}
+
+func (m model) updateConflictMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "up", "k":
+		m.moveConflictSelection(-1)
+		return m, m.loadConflictContent()
+	case "down", "j":
+		m.moveConflictSelection(1)
+		return m, m.loadConflictContent()
+	case "[", "left":
+		m.scrollConflict(-1)
+	case "]", "right":
+		m.scrollConflict(1)
+	case "pgup", "b", "ctrl+u":
+		m.scrollConflict(-m.conflictHeight())
+	case "pgdown", "f", " ":
+		m.scrollConflict(m.conflictHeight())
+	case "g", "home":
+		m.conflictViewport.GotoTop()
+	case "G", "end":
+		m.conflictViewport.GotoBottom()
+	case "o":
+		return m, m.acceptOurs()
+	case "t":
+		return m, m.acceptTheirs()
+	case "s":
+		return m, m.stageConflict()
+	case "e", "enter":
+		return m, m.openConflictEditor()
+	case "a":
+		m.openConfirm(confirmAbortMerge, "Abort merge", "Abort the current merge?")
+		return m, nil
+	case "c":
+		if len(m.conflicts) > 0 {
+			m.err = errors.New("stage all conflicted files before continuing the merge")
+			m.status = "merge blocked"
+			m.appendConsoleError("merge", m.err)
+			return m, nil
+		}
+		return m, m.continueMerge()
+	case "r":
+		m.loading = true
+		m.status = "refreshing"
+		return m, m.refresh()
 	}
 	return m, nil
 }
@@ -843,6 +932,9 @@ func (m *model) openConfirm(action confirmAction, title, message string) {
 
 func (m *model) closeConfirm(status string) {
 	m.mode = reviewMode
+	if m.mergeInProgress {
+		m.mode = conflictMode
+	}
 	m.confirmAction = confirmNone
 	m.confirmTitle = ""
 	m.confirmMessage = ""

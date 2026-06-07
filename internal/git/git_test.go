@@ -30,6 +30,20 @@ func TestParseStatus(t *testing.T) {
 	}
 }
 
+func TestParseConflictStatus(t *testing.T) {
+	out := "UU shared.txt\x00AA both-added.txt\x00"
+
+	files := parseStatus(out)
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+	for _, file := range files {
+		if !file.IsConflict() {
+			t.Fatalf("expected %s to be a conflict: %#v", file.Path, file)
+		}
+	}
+}
+
 func TestUntrackedDiff(t *testing.T) {
 	dir := t.TempDir()
 	runGit(t, dir, "init")
@@ -132,6 +146,52 @@ func TestCommitRequiresStagedChanges(t *testing.T) {
 	}
 }
 
+func TestContinueMergeAfterAcceptingOurs(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "diffmate@example.com")
+	runGit(t, dir, "config", "user.name", "Diffmate Test")
+
+	writeFile(t, dir, "notes.txt", "line: base\n")
+	runGit(t, dir, "add", "notes.txt")
+	runGit(t, dir, "commit", "-m", "chore: base")
+
+	runGit(t, dir, "checkout", "-b", "feature")
+	writeFile(t, dir, "notes.txt", "line: theirs\n")
+	runGit(t, dir, "add", "notes.txt")
+	runGit(t, dir, "commit", "-m", "feat: feature change")
+
+	runGit(t, dir, "checkout", "main")
+	writeFile(t, dir, "notes.txt", "line: ours\n")
+	runGit(t, dir, "add", "notes.txt")
+	runGit(t, dir, "commit", "-m", "feat: main change")
+
+	cmd := exec.Command("git", "merge", "feature")
+	cmd.Dir = dir
+	if err := cmd.Run(); err == nil {
+		t.Fatal("expected merge conflict")
+	}
+
+	repo := Repo{Root: dir}
+	if !repo.MergeInProgress(context.Background()) {
+		t.Fatal("expected merge to be in progress")
+	}
+
+	conflict := FileStatus{Path: "notes.txt", Index: 'U', Worktree: 'U'}
+	if err := repo.CheckoutOurs(context.Background(), conflict); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Stage(context.Background(), conflict); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.ContinueMerge(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if repo.MergeInProgress(context.Background()) {
+		t.Fatal("expected merge to be completed")
+	}
+}
+
 func TestInitCreatesRepositoryWithDescription(t *testing.T) {
 	dir := t.TempDir()
 
@@ -152,6 +212,14 @@ func TestInitCreatesRepositoryWithDescription(t *testing.T) {
 	}
 
 	if _, err := OpenInDir(context.Background(), dir); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFile(t *testing.T, dir, path, content string) {
+	t.Helper()
+
+	if err := os.WriteFile(filepath.Join(dir, path), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
