@@ -11,6 +11,22 @@ terminal. Run it inside a repository, scan changed and untracked files, inspect
 diffs, stage or unstage files, commit, push, and jump into your editor or coding
 agent without leaving the keyboard.
 
+## Why
+
+This is not trying to be something special or better than every other Git TUI.
+It is built around how I personally want to review code before committing.
+
+My daily workflow lives in the terminal now: Codex, Claude Code, Neovim, Git, and
+small tools that stay out of the way. `diffmate` is my version of that for
+reviewing a commit. I want to open it, see what changed, review the diff, stage
+what I need, write or generate a commit message, and push without leaving the
+terminal.
+
+The app will probably change a lot as I use it. Some features might get added,
+some might get removed, and some might stay simple on purpose. The point is to
+adjust it around the daily workflow instead of building a huge Git client from
+day one.
+
 ## Status
 
 Early MVP. The first goal is a small, useful pre-commit review screen rather than
@@ -29,12 +45,6 @@ From a local checkout:
 ```sh
 make install
 diffmate review
-```
-
-Planned release paths:
-
-```sh
-brew install diffmate
 ```
 
 ## Usage
@@ -63,6 +73,14 @@ Press `,` inside the app to configure:
 - Preferred coding agent: Codex, Claude, Antigravity, or Gemini.
 
 Config is saved in your OS config directory under `diffmate/config.json`.
+
+## Tech Stack
+
+- Go for the CLI and Git workflow logic.
+- Bubble Tea for the terminal app architecture.
+- Bubbles for reusable TUI pieces like the diff viewport.
+- Lip Gloss for terminal styling and layout.
+- Git CLI under the hood for repository operations.
 
 ## Commit Suggestions
 
