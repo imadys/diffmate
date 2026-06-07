@@ -17,3 +17,18 @@ func TestFirstLineSkipsWarnings(t *testing.T) {
 		t.Fatalf("unexpected message: %q", message)
 	}
 }
+
+func TestGeminiResponseExtractsJSONResponse(t *testing.T) {
+	message := geminiResponse(`{"response":"feat(tui): improve commit modal"}`)
+
+	if message != "feat(tui): improve commit modal" {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
+func TestRunnerForUnsupportedAgent(t *testing.T) {
+	_, err := runnerForAgent("antigravity", ".")
+	if err == nil {
+		t.Fatal("expected unsupported agent error")
+	}
+}

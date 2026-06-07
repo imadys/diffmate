@@ -223,13 +223,53 @@ func (r Repo) Commit(ctx context.Context, message string) error {
 		return errors.New("commit message cannot be empty")
 	}
 
-	_, err := run(ctx, r.Root, "commit", "-m", message)
+	hasStagedChanges, err := r.HasStagedChanges(ctx)
+	if err != nil {
+		return err
+	}
+	if !hasStagedChanges {
+		return errors.New("nothing staged to commit; stage files first with s or S")
+	}
+
+	_, err = run(ctx, r.Root, "commit", "-m", message)
 	return err
 }
 
 func (r Repo) Push(ctx context.Context) error {
 	_, err := run(ctx, r.Root, "push")
 	return err
+}
+
+func (r Repo) HasStagedChanges(ctx context.Context) (bool, error) {
+	cmd := exec.CommandContext(ctx, "git", "diff", "--cached", "--quiet", "--exit-code")
+	cmd.Dir = r.Root
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		return false, nil
+	}
+
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) && exitError.ExitCode() == 1 {
+		return true, nil
+	}
+	if message := strings.TrimSpace(stderr.String()); message != "" {
+		return false, errors.New(message)
+	}
+	return false, err
+}
+
+func (r Repo) CommitMessageDiff(ctx context.Context) (string, error) {
+	out, err := run(ctx, r.Root, "diff", "--cached", "--stat", "--patch")
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(out) != "" {
+		return out, nil
+	}
+
+	return run(ctx, r.Root, "diff", "--stat", "--patch")
 }
 
 func (r Repo) HasHead(ctx context.Context) bool {

@@ -87,6 +87,13 @@ func TestStageAllUnstageAllAndCommit(t *testing.T) {
 	if err := repo.StageAll(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	hasStagedChanges, err := repo.HasStagedChanges(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasStagedChanges {
+		t.Fatal("expected staged changes")
+	}
 	if err := repo.Commit(context.Background(), "initial commit"); err != nil {
 		t.Fatal(err)
 	}
@@ -94,6 +101,34 @@ func TestStageAllUnstageAllAndCommit(t *testing.T) {
 	status = gitOutput(t, dir, "status", "--porcelain")
 	if strings.TrimSpace(status) != "" {
 		t.Fatalf("expected clean working tree after commit, got:\n%s", status)
+	}
+}
+
+func TestCommitRequiresStagedChanges(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "diffmate@example.com")
+	runGit(t, dir, "config", "user.name", "Diffmate Test")
+
+	if err := os.WriteFile(filepath.Join(dir, "one.txt"), []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := Repo{Root: dir}
+	hasStagedChanges, err := repo.HasStagedChanges(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasStagedChanges {
+		t.Fatal("expected no staged changes")
+	}
+
+	err = repo.Commit(context.Background(), "initial commit")
+	if err == nil {
+		t.Fatal("expected commit to fail without staged changes")
+	}
+	if !strings.Contains(err.Error(), "nothing staged") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
