@@ -76,8 +76,8 @@ type keySegment struct {
 func (m model) renderKeySegments(width int) string {
 	logo := miniLogo()
 	status := m.footerStatus()
-	content := logo + " " + status + "  " + keyStyle.Render("c") + " commit  " + keyStyle.Render("p") + " push  " + keyStyle.Render("S") + " stage all  " + keyStyle.Render("U") + " unstage all  " + keyStyle.Render("o") + " editor  " + keyStyle.Render("a") + " agent  " + keyStyle.Render(",") + " config  " + keyStyle.Render("?") + " keymap  " + keyStyle.Render("q") + " quit"
-	return keyBarStyle.Width(width).Render(truncate(content, max(1, width-2)))
+	content := logo + " " + status + " | " + keyStyle.Render("c") + " commit | " + keyStyle.Render("p") + " push | " + keyStyle.Render("S") + " stage all | " + keyStyle.Render("U") + " unstage all | " + keyStyle.Render("o") + " editor | " + keyStyle.Render("a") + " agent | " + keyStyle.Render(",") + " config | " + keyStyle.Render("?") + " keymap | " + keyStyle.Render("q") + " quit"
+	return keyBarStyle.Render(truncate(content, width))
 }
 func suggestTick() tea.Cmd {
 	return tea.Tick(time.Second, func(time.Time) tea.Msg {

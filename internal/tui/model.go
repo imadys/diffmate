@@ -3,6 +3,7 @@ package tui
 import (
 	"time"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/imadys/diffmate/internal/git"
 	"github.com/imadys/diffmate/internal/settings"
@@ -43,7 +44,7 @@ type model struct {
 	stashSelected   int
 	diff            string
 	diffOffset      int
-	fileOffset      int
+	diffViewport    viewport.Model
 	width           int
 	height          int
 	err             error
@@ -113,6 +114,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.syncDiffViewport()
 		return m, nil
 	case refreshMsg:
 		m.loading = false
@@ -133,6 +135,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.clampSidebarSelections()
 		m.diff = msg.diff
 		m.diffOffset = 0
+		m.syncDiffViewport()
+		m.updateDiffViewportContent()
+		m.diffViewport.GotoTop()
 		if len(m.files) == 0 {
 			m.status = "working tree clean"
 		}
@@ -250,6 +255,7 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.focus == sidebarFocus {
 			m.moveSidebarSelection(-1)
 			m.diffOffset = 0
+			m.diffViewport.GotoTop()
 			return m, m.loadDiff()
 		}
 		m.scrollDiff(-1)
@@ -257,6 +263,7 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.focus == sidebarFocus {
 			m.moveSidebarSelection(1)
 			m.diffOffset = 0
+			m.diffViewport.GotoTop()
 			return m, m.loadDiff()
 		}
 		m.scrollDiff(1)
@@ -297,8 +304,10 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.scrollDiff(m.diffHeight())
 	case "g", "home":
 		m.diffOffset = 0
+		m.diffViewport.GotoTop()
 	case "G", "end":
-		m.diffOffset = max(0, len(m.diffLines())-m.diffHeight())
+		m.diffViewport.GotoBottom()
+		m.diffOffset = m.diffViewport.YOffset
 	case "s":
 		return m, m.stage()
 	case "u":
@@ -556,7 +565,6 @@ func (m *model) moveSidebarSelection(delta int) {
 	switch m.tab {
 	case changesTab:
 		m.selected = clamp(m.selected+delta, 0, max(0, len(m.files)-1))
-		m.keepSelectedFileVisible()
 	case branchesTab:
 		m.branchSelected = clamp(m.branchSelected+delta, 0, max(0, len(m.branches)-1))
 	case commitsTab:

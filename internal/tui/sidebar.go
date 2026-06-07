@@ -28,6 +28,9 @@ func (m model) renderSectionCard(tab sidebarTab, width, height int) string {
 	current := tab == m.tab
 	focused := m.focus == sidebarFocus && current
 	title := fmt.Sprintf("[%d] %s", int(tab)+1, sectionTitle(tab))
+	if count, total := m.sectionPosition(tab); total > 0 {
+		title += fmt.Sprintf("  %d/%d", count, total)
+	}
 	if current {
 		title = titleStyle.Render(title)
 	} else {
@@ -68,63 +71,74 @@ func (m model) renderChangeItems(width, height int, current, focused bool) []str
 		return []string{mutedStyle.Render("No changes")}
 	}
 
-	visibleFiles := m.visibleFiles(height)
+	offset := keepIndexVisible(m.selected, len(m.files), height)
+	end := min(len(m.files), offset+height)
+	visibleFiles := m.files[offset:end]
 	lines := make([]string, 0, len(visibleFiles))
 	for visibleIndex, file := range visibleFiles {
-		i := m.fileOffset + visibleIndex
+		i := offset + visibleIndex
 		line := m.renderFileLine(file, width)
 		if current && i == m.selected {
 			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
 	}
-	return lines
+	return fitLineSlice(lines, height)
 }
 func (m model) renderBranchItems(width, height int, current, focused bool) []string {
 	if len(m.branches) == 0 {
 		return []string{mutedStyle.Render("No branches")}
 	}
-	lines := make([]string, 0, min(height, len(m.branches)))
-	for i, branch := range m.branches[:min(height, len(m.branches))] {
+	offset := keepIndexVisible(m.branchSelected, len(m.branches), height)
+	end := min(len(m.branches), offset+height)
+	lines := make([]string, 0, max(0, end-offset))
+	for i, branch := range m.branches[offset:end] {
+		index := offset + i
 		prefix := "  "
 		if branch.Current {
 			prefix = "* "
 		}
 		line := truncate(prefix+branch.Name, width)
-		if current && i == m.branchSelected {
+		if current && index == m.branchSelected {
 			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
 	}
-	return lines
+	return fitLineSlice(lines, height)
 }
 func (m model) renderCommitItems(width, height int, current, focused bool) []string {
 	if len(m.commits) == 0 {
 		return []string{mutedStyle.Render("No commits")}
 	}
-	lines := make([]string, 0, min(height, len(m.commits)))
-	for i, commit := range m.commits[:min(height, len(m.commits))] {
+	offset := keepIndexVisible(m.commitSelected, len(m.commits), height)
+	end := min(len(m.commits), offset+height)
+	lines := make([]string, 0, max(0, end-offset))
+	for i, commit := range m.commits[offset:end] {
+		index := offset + i
 		line := truncate(commit.Hash+" "+commit.Subject, width)
-		if current && i == m.commitSelected {
+		if current && index == m.commitSelected {
 			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
 	}
-	return lines
+	return fitLineSlice(lines, height)
 }
 func (m model) renderStashItems(width, height int, current, focused bool) []string {
 	if len(m.stashes) == 0 {
 		return []string{mutedStyle.Render("No stash entries")}
 	}
-	lines := make([]string, 0, min(height, len(m.stashes)))
-	for i, stash := range m.stashes[:min(height, len(m.stashes))] {
+	offset := keepIndexVisible(m.stashSelected, len(m.stashes), height)
+	end := min(len(m.stashes), offset+height)
+	lines := make([]string, 0, max(0, end-offset))
+	for i, stash := range m.stashes[offset:end] {
+		index := offset + i
 		line := truncate(stash.Name+" "+stash.Subject, width)
-		if current && i == m.stashSelected {
+		if current && index == m.stashSelected {
 			line = selectedLineStyle(focused, width).Render(line)
 		}
 		lines = append(lines, line)
 	}
-	return lines
+	return fitLineSlice(lines, height)
 }
 func (m model) renderFileLine(file git.FileStatus, width int) string {
 	status := strings.TrimSpace(string([]byte{file.Index, file.Worktree}))
@@ -149,4 +163,31 @@ func selectedLineStyle(focused bool, width int) lipgloss.Style {
 		return selectedStyle.Width(width)
 	}
 	return linkedStyle.Width(width)
+}
+
+func (m model) sectionPosition(tab sidebarTab) (int, int) {
+	switch tab {
+	case changesTab:
+		if len(m.files) == 0 {
+			return 0, 0
+		}
+		return m.selected + 1, len(m.files)
+	case branchesTab:
+		if len(m.branches) == 0 {
+			return 0, 0
+		}
+		return m.branchSelected + 1, len(m.branches)
+	case commitsTab:
+		if len(m.commits) == 0 {
+			return 0, 0
+		}
+		return m.commitSelected + 1, len(m.commits)
+	case stashTab:
+		if len(m.stashes) == 0 {
+			return 0, 0
+		}
+		return m.stashSelected + 1, len(m.stashes)
+	default:
+		return 0, 0
+	}
 }

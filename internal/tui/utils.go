@@ -27,6 +27,16 @@ func indentBlock(value string, width int) string {
 	return strings.Join(lines, "\n")
 }
 
+func fitLineSlice(lines []string, height int) []string {
+	if len(lines) > height {
+		lines = lines[:height]
+	}
+	for len(lines) < height {
+		lines = append(lines, "")
+	}
+	return lines
+}
+
 func splitHeights(total, count int) []int {
 	if count <= 0 {
 		return nil

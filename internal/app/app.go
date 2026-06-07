@@ -99,8 +99,9 @@ Keybindings:
   S              stage all files
   U              unstage all files
   c              write commit message
-  ctrl+g         suggest commit message with Codex
+  ctrl+g         suggest commit message with preferred agent
   ctrl+s         create commit from message box
+  ctrl+d         clear commit message and modal errors
   p              push current branch
   o              open preferred editor
   a              open preferred agent
