@@ -75,6 +75,22 @@ make install
 diffmate review
 ```
 
+## Requirements
+
+Required:
+
+- Git installed and available in your `PATH`.
+
+Optional:
+
+- A preferred editor CLI for opening files or the project: `code`, `zed`,
+  `cursor`, or `nvim`.
+- A coding agent CLI for commit message suggestions: `codex`, `claude`, or
+  `gemini`.
+
+`diffmate` shells out to the Git CLI instead of using a Git library, so Git is
+the only hard runtime dependency.
+
 ## Usage
 
 ```sh

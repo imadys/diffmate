@@ -2,10 +2,12 @@ package tui
 
 import (
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
 	"path/filepath"
 	"strings"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/imadys/diffmate/internal/version"
 )
 
 func (m model) renderHeader(width int) string {
@@ -144,7 +146,7 @@ type keySegment struct {
 }
 
 func (m model) renderKeySegments(width int) string {
-	logo := miniLogo()
+	logo := miniLogo() + " " + subtleStyle.Render(version.Version)
 	status := m.footerStatus()
 	parts := []string{logo + " " + status}
 	for _, segment := range m.keySegments() {

@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/imadys/diffmate/internal/git"
 	"github.com/imadys/diffmate/internal/tui"
+	"github.com/imadys/diffmate/internal/version"
 )
 
 func Run(args []string) error {
@@ -23,7 +24,7 @@ func Run(args []string) error {
 		fmt.Println(helpText)
 		return nil
 	case "version", "-v", "--version":
-		fmt.Println("diffmate dev")
+		fmt.Println("diffmate " + version.Version)
 		return nil
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], helpText)
