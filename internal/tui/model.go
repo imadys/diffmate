@@ -82,6 +82,8 @@ type model struct {
 	showWelcome      bool
 	showHelp         bool
 	showTabs         bool
+	searchActive     bool
+	searchQuery      string
 	consoleVisible   bool
 	consoleLines     []string
 	configSection    int
@@ -276,6 +278,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.showHelp = false
 			return m, nil
 		}
+		if m.searchActive {
+			return m.updateSearchMode(msg)
+		}
 		if m.mode == commitMode {
 			return m.updateCommitMode(msg)
 		}
@@ -314,6 +319,14 @@ func (m model) updateWelcomeMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "/":
+		if m.focus != sidebarFocus {
+			m.focus = sidebarFocus
+		}
+		m.searchActive = true
+		m.searchQuery = ""
+		m.status = "search " + strings.ToLower(sectionTitle(m.tab))
+		return m, nil
 	case "?":
 		m.showHelp = !m.showHelp
 		return m, nil
@@ -541,6 +554,43 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.openPreferredAgent()
 	case "e", "enter":
 		return m, m.openEditor()
+	}
+
+	return m, nil
+}
+
+func (m model) updateSearchMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.searchActive = false
+		m.searchQuery = ""
+		m.status = "search cleared"
+		return m, m.loadDiff()
+	case "enter":
+		m.searchActive = false
+		m.status = "search applied"
+		return m, m.loadDiff()
+	case "backspace":
+		if len(m.searchQuery) > 0 {
+			runes := []rune(m.searchQuery)
+			m.searchQuery = string(runes[:len(runes)-1])
+			m.selectFirstSearchMatch()
+			return m, m.loadDiff()
+		}
+	case "ctrl+c":
+		return m, tea.Quit
+	case "up", "k":
+		m.moveSidebarSelection(-1)
+		return m, m.loadDiff()
+	case "down", "j":
+		m.moveSidebarSelection(1)
+		return m, m.loadDiff()
+	}
+
+	if msg.Type == tea.KeyRunes {
+		m.searchQuery += msg.String()
+		m.selectFirstSearchMatch()
+		return m, m.loadDiff()
 	}
 
 	return m, nil
@@ -806,6 +856,10 @@ func (m *model) focusCard(tab sidebarTab) {
 	if !m.tabsEnabled[tab] {
 		return
 	}
+	if m.tab != tab {
+		m.searchActive = false
+		m.searchQuery = ""
+	}
 	m.focus = sidebarFocus
 	m.tab = tab
 	m.diffOffset = 0
@@ -862,6 +916,8 @@ func (m *model) moveTab(delta int) {
 		return
 	}
 	m.tab = m.nextVisibleTab(delta)
+	m.searchActive = false
+	m.searchQuery = ""
 	m.diffOffset = 0
 }
 
@@ -896,6 +952,10 @@ func (m model) visibleTabs() []sidebarTab {
 }
 
 func (m *model) moveSidebarSelection(delta int) {
+	if m.searchQuery != "" {
+		m.moveFilteredSidebarSelection(delta)
+		return
+	}
 	switch m.tab {
 	case changesTab:
 		m.selected = clamp(m.selected+delta, 0, max(0, len(m.files)-1))

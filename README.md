@@ -166,6 +166,7 @@ prompt mode yet, `diffmate` shows a placeholder instead of blocking the modal.
 | `tab`                            | Cycle cards and diff                                |
 | `,`                              | Open config                                         |
 | `t`                              | Open config sections                                |
+| `/`                              | Search the focused sidebar card                     |
 | `left`, `right`                  | Switch sidebar sections when sidebar is focused     |
 | `]`, `right`                     | Scroll diff down one line                           |
 | `[`, `left`                      | Scroll diff up one line                             |
@@ -192,7 +193,7 @@ prompt mode yet, `diffmate` shows a placeholder instead of blocking the modal.
 | `p`                              | Push current branch and set upstream if needed      |
 | `o`                              | Open project in preferred editor                    |
 | `a`                              | Open preferred coding agent                         |
-| `e`, `enter`                     | Open selected file in `$VISUAL`, `$EDITOR`, or `vi` |
+| `e`, `enter`                     | Open selected file in the preferred editor          |
 | `r`                              | Refresh                                             |
 | `~`                              | Show or hide the console panel                      |
 | `ctrl+l`                         | Clear console log history                           |

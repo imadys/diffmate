@@ -31,6 +31,9 @@ func (m model) renderSectionCard(tab sidebarTab, width, height int) string {
 	if count, total := m.sectionPosition(tab); total > 0 {
 		title += fmt.Sprintf("  %d/%d", count, total)
 	}
+	if tab == m.tab && m.searchQuery != "" {
+		title += "  /" + m.searchQuery
+	}
 	if current {
 		title = titleStyle.Render(title)
 	} else {
@@ -71,12 +74,20 @@ func (m model) renderChangeItems(width, height int, current, focused bool) []str
 		return []string{mutedStyle.Render("No changes")}
 	}
 
-	offset := keepIndexVisible(m.selected, len(m.files), height)
-	end := min(len(m.files), offset+height)
-	visibleFiles := m.files[offset:end]
-	lines := make([]string, 0, len(visibleFiles))
-	for visibleIndex, file := range visibleFiles {
-		i := offset + visibleIndex
+	indices := m.filteredSidebarIndices(changesTab)
+	if len(indices) == 0 {
+		return []string{mutedStyle.Render("No matches")}
+	}
+	selectedPosition := indexOfInt(indices, m.selected)
+	if selectedPosition < 0 {
+		selectedPosition = 0
+	}
+	offset := keepIndexVisible(selectedPosition, len(indices), height)
+	end := min(len(indices), offset+height)
+	visibleIndices := indices[offset:end]
+	lines := make([]string, 0, len(visibleIndices))
+	for _, i := range visibleIndices {
+		file := m.files[i]
 		line := m.renderFileLine(file, width)
 		if current && i == m.selected {
 			line = m.renderPlainFileLine(file, width)
@@ -90,11 +101,19 @@ func (m model) renderBranchItems(width, height int, current, focused bool) []str
 	if len(m.branches) == 0 {
 		return []string{mutedStyle.Render("No branches")}
 	}
-	offset := keepIndexVisible(m.branchSelected, len(m.branches), height)
-	end := min(len(m.branches), offset+height)
+	indices := m.filteredSidebarIndices(branchesTab)
+	if len(indices) == 0 {
+		return []string{mutedStyle.Render("No matches")}
+	}
+	selectedPosition := indexOfInt(indices, m.branchSelected)
+	if selectedPosition < 0 {
+		selectedPosition = 0
+	}
+	offset := keepIndexVisible(selectedPosition, len(indices), height)
+	end := min(len(indices), offset+height)
 	lines := make([]string, 0, max(0, end-offset))
-	for i, branch := range m.branches[offset:end] {
-		index := offset + i
+	for _, index := range indices[offset:end] {
+		branch := m.branches[index]
 		prefix := "  "
 		if branch.Current {
 			prefix = "* "
@@ -111,11 +130,19 @@ func (m model) renderCommitItems(width, height int, current, focused bool) []str
 	if len(m.commits) == 0 {
 		return []string{mutedStyle.Render("No commits")}
 	}
-	offset := keepIndexVisible(m.commitSelected, len(m.commits), height)
-	end := min(len(m.commits), offset+height)
+	indices := m.filteredSidebarIndices(commitsTab)
+	if len(indices) == 0 {
+		return []string{mutedStyle.Render("No matches")}
+	}
+	selectedPosition := indexOfInt(indices, m.commitSelected)
+	if selectedPosition < 0 {
+		selectedPosition = 0
+	}
+	offset := keepIndexVisible(selectedPosition, len(indices), height)
+	end := min(len(indices), offset+height)
 	lines := make([]string, 0, max(0, end-offset))
-	for i, commit := range m.commits[offset:end] {
-		index := offset + i
+	for _, index := range indices[offset:end] {
+		commit := m.commits[index]
 		line := truncate(commit.Hash+" "+commit.Subject, width)
 		if current && index == m.commitSelected {
 			line = selectedLineStyle(focused, width).Render(line)
@@ -128,11 +155,19 @@ func (m model) renderStashItems(width, height int, current, focused bool) []stri
 	if len(m.stashes) == 0 {
 		return []string{mutedStyle.Render("No stash entries")}
 	}
-	offset := keepIndexVisible(m.stashSelected, len(m.stashes), height)
-	end := min(len(m.stashes), offset+height)
+	indices := m.filteredSidebarIndices(stashTab)
+	if len(indices) == 0 {
+		return []string{mutedStyle.Render("No matches")}
+	}
+	selectedPosition := indexOfInt(indices, m.stashSelected)
+	if selectedPosition < 0 {
+		selectedPosition = 0
+	}
+	offset := keepIndexVisible(selectedPosition, len(indices), height)
+	end := min(len(indices), offset+height)
 	lines := make([]string, 0, max(0, end-offset))
-	for i, stash := range m.stashes[offset:end] {
-		index := offset + i
+	for _, index := range indices[offset:end] {
+		stash := m.stashes[index]
 		line := truncate(stash.Name+" "+stash.Subject, width)
 		if current && index == m.stashSelected {
 			line = selectedLineStyle(focused, width).Render(line)
@@ -176,25 +211,45 @@ func selectedLineStyle(focused bool, width int) lipgloss.Style {
 func (m model) sectionPosition(tab sidebarTab) (int, int) {
 	switch tab {
 	case changesTab:
-		if len(m.files) == 0 {
+		indices := m.filteredSidebarIndices(tab)
+		if len(indices) == 0 {
 			return 0, 0
 		}
-		return m.selected + 1, len(m.files)
+		position := indexOfInt(indices, m.selected)
+		if position < 0 {
+			return 0, len(indices)
+		}
+		return position + 1, len(indices)
 	case branchesTab:
-		if len(m.branches) == 0 {
+		indices := m.filteredSidebarIndices(tab)
+		if len(indices) == 0 {
 			return 0, 0
 		}
-		return m.branchSelected + 1, len(m.branches)
+		position := indexOfInt(indices, m.branchSelected)
+		if position < 0 {
+			return 0, len(indices)
+		}
+		return position + 1, len(indices)
 	case commitsTab:
-		if len(m.commits) == 0 {
+		indices := m.filteredSidebarIndices(tab)
+		if len(indices) == 0 {
 			return 0, 0
 		}
-		return m.commitSelected + 1, len(m.commits)
+		position := indexOfInt(indices, m.commitSelected)
+		if position < 0 {
+			return 0, len(indices)
+		}
+		return position + 1, len(indices)
 	case stashTab:
-		if len(m.stashes) == 0 {
+		indices := m.filteredSidebarIndices(tab)
+		if len(indices) == 0 {
 			return 0, 0
 		}
-		return m.stashSelected + 1, len(m.stashes)
+		position := indexOfInt(indices, m.stashSelected)
+		if position < 0 {
+			return 0, len(indices)
+		}
+		return position + 1, len(indices)
 	default:
 		return 0, 0
 	}

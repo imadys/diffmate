@@ -66,6 +66,32 @@ func TestUntrackedDiff(t *testing.T) {
 	}
 }
 
+func TestBranchesPinCurrentBranchFirst(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "diffmate@example.com")
+	runGit(t, dir, "config", "user.name", "Diffmate Test")
+
+	writeFile(t, dir, "notes.txt", "base\n")
+	runGit(t, dir, "add", "notes.txt")
+	runGit(t, dir, "commit", "-m", "chore: base")
+	runGit(t, dir, "branch", "alpha")
+	runGit(t, dir, "branch", "zulu")
+	runGit(t, dir, "checkout", "zulu")
+
+	repo := Repo{Root: dir}
+	branches, err := repo.Branches(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(branches) < 3 {
+		t.Fatalf("expected at least three branches, got %#v", branches)
+	}
+	if !branches[0].Current || branches[0].Name != "zulu" {
+		t.Fatalf("expected current branch first, got %#v", branches)
+	}
+}
+
 func TestStageAllUnstageAllAndCommit(t *testing.T) {
 	dir := t.TempDir()
 	runGit(t, dir, "init")

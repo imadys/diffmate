@@ -27,6 +27,15 @@ func (m model) repoName() string {
 	return name
 }
 func (m model) keySegments() []keySegment {
+	if m.searchActive {
+		return []keySegment{
+			{"type", "search"},
+			{"j/k", "result"},
+			{"enter", "apply"},
+			{"esc", "clear"},
+		}
+	}
+
 	if m.mode == commitMode {
 		return []keySegment{
 			{"type", "message"},
@@ -96,6 +105,7 @@ func (m model) keySegments() []keySegment {
 			{"space", "page"},
 			{"g/G", "top/bottom"},
 			{"left", "cards"},
+			{"/", "search"},
 			{"?", "keymap"},
 		}
 	}
@@ -109,6 +119,7 @@ func (m model) keySegments() []keySegment {
 			{"s", "stash"},
 			{"D", "reset"},
 			{"c", "commit"},
+			{"/", "search"},
 			{"?", "keymap"},
 		}
 	case branchesTab:
@@ -121,16 +132,19 @@ func (m model) keySegments() []keySegment {
 			{"d", "delete"},
 			{"D", "delete remote"},
 			{"ctrl+d", "delete both"},
+			{"/", "search"},
 			{"?", "keymap"},
 		}
 	case commitsTab:
 		return []keySegment{
 			{"space", "view diff"},
+			{"/", "search"},
 			{"?", "keymap"},
 		}
 	case stashTab:
 		return []keySegment{
 			{"space", "view stash"},
+			{"/", "search"},
 			{"?", "keymap"},
 		}
 	default:

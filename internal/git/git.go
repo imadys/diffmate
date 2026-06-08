@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -112,6 +113,12 @@ func (r Repo) Branches(ctx context.Context) ([]Branch, error) {
 			Name:    strings.TrimSpace(strings.TrimPrefix(line, "*")),
 		})
 	}
+	sort.SliceStable(branches, func(i, j int) bool {
+		if branches[i].Current != branches[j].Current {
+			return branches[i].Current
+		}
+		return strings.ToLower(branches[i].Name) < strings.ToLower(branches[j].Name)
+	})
 	return branches, nil
 }
 

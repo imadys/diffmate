@@ -40,4 +40,22 @@ func TestRefreshKeepsConflictModeWhenAllConflictsStaged(t *testing.T) {
 	}
 }
 
+func TestSearchSelectsFirstMatchingChange(t *testing.T) {
+	m := model{
+		tab: sidebarTab(changesTab),
+		files: []git.FileStatus{
+			{Path: "src/messages/ar.json", Index: ' ', Worktree: 'M'},
+			{Path: "src/messages/en.json", Index: ' ', Worktree: 'M'},
+			{Path: "README.md", Index: ' ', Worktree: 'M'},
+		},
+		searchQuery: "en",
+	}
+
+	m.selectFirstSearchMatch()
+
+	if m.selected != 1 {
+		t.Fatalf("expected en.json to be selected, got %d", m.selected)
+	}
+}
+
 var _ tea.Model = model{}
