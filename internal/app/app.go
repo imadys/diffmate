@@ -20,6 +20,8 @@ func Run(args []string) error {
 	switch args[0] {
 	case "review":
 		return runReview()
+	case "docs":
+		return runDocs()
 	case "help", "-h", "--help":
 		fmt.Println(helpText)
 		return nil
@@ -29,6 +31,27 @@ func Run(args []string) error {
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], helpText)
 	}
+}
+
+func runDocs() error {
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	program := tea.NewProgram(tui.NewDocs(dir), tea.WithAltScreen())
+	final, err := program.Run()
+	if err != nil {
+		if errors.Is(err, tea.ErrProgramKilled) {
+			return nil
+		}
+		return err
+	}
+	if result, ok := final.(interface{ SwitchToReview() bool }); ok && result.SwitchToReview() {
+		return runReview()
+	}
+
+	return nil
 }
 
 func runReview() error {
@@ -82,6 +105,7 @@ const helpText = `diffmate - review your working tree before committing
 
 Usage:
   diffmate review
+  diffmate docs
   diffmate help
 
 Keybindings:

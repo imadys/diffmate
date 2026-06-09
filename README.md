@@ -95,12 +95,18 @@ the only hard runtime dependency.
 
 ```sh
 diffmate review
+diffmate docs
 ```
 
 Running `diffmate` with no arguments also opens the review screen.
 
 If the current directory is not a Git repository, `diffmate` opens a setup screen
 and can initialize Git for that directory.
+
+`diffmate docs` opens a two-pane Markdown browser for the current project. The
+left pane lists project `.md` files as a file tree, and the right pane previews
+the selected file. Folders can be collapsed, files can be searched, and selected
+docs can be edited in place.
 
 The review screen uses a bento-style terminal layout:
 
@@ -212,6 +218,21 @@ Conflict mode:
 | `e`        | Open selected file in editor    |
 | `a`        | Abort merge with confirmation   |
 | `c`        | Continue merge                  |
+
+Docs mode:
+
+| Key                      | Action                                  |
+| ------------------------ | --------------------------------------- |
+| `j`, `k`                 | Move through files and folders          |
+| `space`, `enter`         | Toggle selected folder                  |
+| `right`                  | Focus document content                  |
+| `left`                   | Return to the file tree                 |
+| `/`                      | Search docs by path                     |
+| `n`                      | Create a new Markdown file              |
+| `enter` on a file        | Edit selected file                      |
+| `ctrl+s` in edit mode    | Save edits                              |
+| `shift+arrow` in edit    | Select text when the terminal supports it |
+| `R`                      | Switch to review mode                   |
 
 ## Development
 

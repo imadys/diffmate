@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+type sidebarItems struct {
+	lines  []string
+	total  int
+	offset int
+}
+
 func (m model) renderSidebar(width, height int) string {
 	tabs := m.visibleTabs()
 	if len(tabs) == 0 {
@@ -43,17 +49,22 @@ func (m model) renderSectionCard(tab sidebarTab, width, height int) string {
 	innerWidth := max(1, width-4)
 	innerHeight := max(1, height-2)
 	contentWidth := max(1, innerWidth-2)
-	lines := []string{title}
+	itemHeight := max(1, innerHeight-1)
+	itemWidth := max(1, contentWidth-1)
+	items := sidebarItems{lines: []string{}}
 	switch tab {
 	case changesTab:
-		lines = append(lines, m.renderChangeItems(contentWidth, innerHeight-1, current, focused)...)
+		items = m.renderChangeItems(itemWidth, itemHeight, current, focused)
 	case branchesTab:
-		lines = append(lines, m.renderBranchItems(contentWidth, innerHeight-1, current, focused)...)
+		items = m.renderBranchItems(itemWidth, itemHeight, current, focused)
 	case commitsTab:
-		lines = append(lines, m.renderCommitItems(contentWidth, innerHeight-1, current, focused)...)
+		items = m.renderCommitItems(itemWidth, itemHeight, current, focused)
 	case stashTab:
-		lines = append(lines, m.renderStashItems(contentWidth, innerHeight-1, current, focused)...)
+		items = m.renderStashItems(itemWidth, itemHeight, current, focused)
 	}
+	itemBlock := lipgloss.NewStyle().Width(itemWidth).Render(fitLines(items.lines, itemHeight))
+	scrollbar := renderScrollbar(items.total, itemHeight, items.offset)
+	body := title + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, itemBlock, scrollbar)
 	border := lipgloss.Color("238")
 	if focused {
 		border = lipgloss.Color("86")
@@ -67,16 +78,16 @@ func (m model) renderSectionCard(tab sidebarTab, width, height int) string {
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(border).
 		Padding(0, 1).
-		Render(fitLines(lines, innerHeight))
+		Render(fitLines(strings.Split(body, "\n"), innerHeight))
 }
-func (m model) renderChangeItems(width, height int, current, focused bool) []string {
+func (m model) renderChangeItems(width, height int, current, focused bool) sidebarItems {
 	if len(m.files) == 0 {
-		return []string{mutedStyle.Render("No changes")}
+		return sidebarItems{lines: []string{mutedStyle.Render("No changes")}}
 	}
 
 	indices := m.filteredSidebarIndices(changesTab)
 	if len(indices) == 0 {
-		return []string{mutedStyle.Render("No matches")}
+		return sidebarItems{lines: []string{mutedStyle.Render("No matches")}}
 	}
 	selectedPosition := indexOfInt(indices, m.selected)
 	if selectedPosition < 0 {
@@ -95,15 +106,15 @@ func (m model) renderChangeItems(width, height int, current, focused bool) []str
 		}
 		lines = append(lines, line)
 	}
-	return fitLineSlice(lines, height)
+	return sidebarItems{lines: fitLineSlice(lines, height), total: len(indices), offset: offset}
 }
-func (m model) renderBranchItems(width, height int, current, focused bool) []string {
+func (m model) renderBranchItems(width, height int, current, focused bool) sidebarItems {
 	if len(m.branches) == 0 {
-		return []string{mutedStyle.Render("No branches")}
+		return sidebarItems{lines: []string{mutedStyle.Render("No branches")}}
 	}
 	indices := m.filteredSidebarIndices(branchesTab)
 	if len(indices) == 0 {
-		return []string{mutedStyle.Render("No matches")}
+		return sidebarItems{lines: []string{mutedStyle.Render("No matches")}}
 	}
 	selectedPosition := indexOfInt(indices, m.branchSelected)
 	if selectedPosition < 0 {
@@ -124,15 +135,15 @@ func (m model) renderBranchItems(width, height int, current, focused bool) []str
 		}
 		lines = append(lines, line)
 	}
-	return fitLineSlice(lines, height)
+	return sidebarItems{lines: fitLineSlice(lines, height), total: len(indices), offset: offset}
 }
-func (m model) renderCommitItems(width, height int, current, focused bool) []string {
+func (m model) renderCommitItems(width, height int, current, focused bool) sidebarItems {
 	if len(m.commits) == 0 {
-		return []string{mutedStyle.Render("No commits")}
+		return sidebarItems{lines: []string{mutedStyle.Render("No commits")}}
 	}
 	indices := m.filteredSidebarIndices(commitsTab)
 	if len(indices) == 0 {
-		return []string{mutedStyle.Render("No matches")}
+		return sidebarItems{lines: []string{mutedStyle.Render("No matches")}}
 	}
 	selectedPosition := indexOfInt(indices, m.commitSelected)
 	if selectedPosition < 0 {
@@ -149,15 +160,15 @@ func (m model) renderCommitItems(width, height int, current, focused bool) []str
 		}
 		lines = append(lines, line)
 	}
-	return fitLineSlice(lines, height)
+	return sidebarItems{lines: fitLineSlice(lines, height), total: len(indices), offset: offset}
 }
-func (m model) renderStashItems(width, height int, current, focused bool) []string {
+func (m model) renderStashItems(width, height int, current, focused bool) sidebarItems {
 	if len(m.stashes) == 0 {
-		return []string{mutedStyle.Render("No stash entries")}
+		return sidebarItems{lines: []string{mutedStyle.Render("No stash entries")}}
 	}
 	indices := m.filteredSidebarIndices(stashTab)
 	if len(indices) == 0 {
-		return []string{mutedStyle.Render("No matches")}
+		return sidebarItems{lines: []string{mutedStyle.Render("No matches")}}
 	}
 	selectedPosition := indexOfInt(indices, m.stashSelected)
 	if selectedPosition < 0 {
@@ -174,7 +185,7 @@ func (m model) renderStashItems(width, height int, current, focused bool) []stri
 		}
 		lines = append(lines, line)
 	}
-	return fitLineSlice(lines, height)
+	return sidebarItems{lines: fitLineSlice(lines, height), total: len(indices), offset: offset}
 }
 func (m model) renderFileLine(file git.FileStatus, width int) string {
 	status := strings.TrimSpace(string([]byte{file.Index, file.Worktree}))

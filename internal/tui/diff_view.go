@@ -28,7 +28,8 @@ func (m model) renderDiff(width, height int) string {
 		header = subtleStyle.Render(truncate(title, max(1, contentWidth-len(scroll)))) + mutedStyle.Render(scroll)
 	}
 
-	content := formatDiffLines(lines, m.selectedFilePath(), contentWidth)
+	viewportWidth := max(1, contentWidth-1)
+	content := formatDiffLines(lines, m.selectedFilePath(), viewportWidth)
 
 	border := lipgloss.Color("238")
 	if m.focus == diffFocus {
@@ -37,13 +38,14 @@ func (m model) renderDiff(width, height int) string {
 
 	vp := m.diffViewport
 	if vp.Width == 0 || vp.Height == 0 {
-		vp = viewport.New(contentWidth, max(1, innerHeight-1))
+		vp = viewport.New(viewportWidth, max(1, innerHeight-1))
 	}
-	vp.Width = contentWidth
+	vp.Width = viewportWidth
 	vp.Height = max(1, innerHeight-1)
 	vp.SetContent(strings.Join(content, "\n"))
 
-	out := header + "\n" + vp.View()
+	scrollbar := renderScrollbar(len(content), vp.Height, vp.YOffset)
+	out := header + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, vp.View(), scrollbar)
 	box := lipgloss.NewStyle().
 		Width(innerWidth).
 		Height(innerHeight).
@@ -75,7 +77,7 @@ func (m *model) syncDiffViewport() {
 
 	innerWidth := max(1, diffWidth-4)
 	innerHeight := max(1, diffHeight-2)
-	m.diffViewport.Width = max(1, innerWidth-2)
+	m.diffViewport.Width = max(1, innerWidth-3)
 	m.diffViewport.Height = max(1, innerHeight-1)
 }
 

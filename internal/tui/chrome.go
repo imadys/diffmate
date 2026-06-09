@@ -117,7 +117,7 @@ func (m model) keySegments() []keySegment {
 			{"S", "stage all"},
 			{"U", "unstage all"},
 			{"s", "stash"},
-			{"D", "reset"},
+			{"D", "discard"},
 			{"c", "commit"},
 			{"/", "search"},
 			{"?", "keymap"},
