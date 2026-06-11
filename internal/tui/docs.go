@@ -469,16 +469,16 @@ func (m docsModel) renderDocsContent(width, height int) string {
 	innerHeight := max(1, height-2)
 	contentWidth := max(1, innerWidth-2)
 	title := subtleStyle.Render("Content")
-	if len(m.files) > 0 {
-		scroll := fmt.Sprintf("  %d/%d", min(m.viewport.YOffset+1, len(m.contentLines())), max(1, len(m.contentLines())))
-		title = subtleStyle.Render(truncate(m.files[m.selected].Path, max(1, contentWidth-len(scroll)))) + mutedStyle.Render(scroll)
-	}
-
 	viewportWidth := max(1, contentWidth-1)
 	lines := m.formattedDocContent(viewportWidth)
 	if m.mode == docsEditMode || m.mode == docsConfirmExitMode {
 		lines = m.formattedEditContent(viewportWidth)
 	}
+	if len(m.files) > 0 {
+		scroll := fmt.Sprintf("  %d/%d", min(m.viewport.YOffset+1, len(lines)), max(1, len(lines)))
+		title = subtleStyle.Render(truncate(m.files[m.selected].Path, max(1, contentWidth-len(scroll)))) + mutedStyle.Render(scroll)
+	}
+
 	vp := m.viewport
 	vp.Width = viewportWidth
 	vp.Height = max(1, innerHeight-1)
@@ -660,7 +660,9 @@ func (m docsModel) formattedDocContent(width int) []string {
 	}
 	formatted := make([]string, 0, len(lines))
 	for _, line := range lines {
-		formatted = append(formatted, highlightMarkdownLine(truncate(line, width)))
+		for _, wrapped := range wrapLine(line, width) {
+			formatted = append(formatted, highlightMarkdownLine(wrapped))
+		}
 	}
 	return formatted
 }

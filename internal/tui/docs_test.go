@@ -3,9 +3,11 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/viewport"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestFindMarkdownFilesSkipsGeneratedDirs(t *testing.T) {
@@ -187,6 +189,38 @@ func TestNewFileInputEditsAtCursor(t *testing.T) {
 	model.backspaceNewFileInput()
 	if model.newFileInput != "docs/new-not.md" {
 		t.Fatalf("unexpected input after backspace: %q", model.newFileInput)
+	}
+}
+
+func TestFormattedDocContentWrapsLongLines(t *testing.T) {
+	model := docsModel{
+		files:   []docFile{{Path: "README.md"}},
+		content: "A buyer deploys SimpleCreator, uploads courses and PDFs, connects Stripe, and starts selling.",
+	}
+
+	lines := model.formattedDocContent(28)
+	if len(lines) < 3 {
+		t.Fatalf("expected wrapped lines, got %#v", lines)
+	}
+	for _, line := range lines {
+		if lipgloss.Width(line) > 28 {
+			t.Fatalf("expected line to fit width, got %d for %q", lipgloss.Width(line), line)
+		}
+	}
+	if strings.Contains(strings.Join(lines, "\n"), "…") {
+		t.Fatalf("expected wrapped content without truncation, got %#v", lines)
+	}
+}
+
+func TestWrapLineHardWrapsLongTokens(t *testing.T) {
+	lines := wrapLine("supercalifragilistic", 5)
+	if len(lines) < 2 {
+		t.Fatalf("expected long token to wrap, got %#v", lines)
+	}
+	for _, line := range lines {
+		if lipgloss.Width(line) > 5 {
+			t.Fatalf("expected line to fit width, got %d for %q", lipgloss.Width(line), line)
+		}
 	}
 }
 

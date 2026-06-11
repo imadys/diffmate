@@ -37,6 +37,59 @@ func fitLineSlice(lines []string, height int) []string {
 	return lines
 }
 
+func wrapLine(value string, width int) []string {
+	if width <= 0 {
+		return []string{""}
+	}
+	if value == "" || lipgloss.Width(value) <= width {
+		return []string{value}
+	}
+
+	runes := []rune(value)
+	lines := []string{}
+	start := 0
+	for start < len(runes) {
+		for start < len(runes) && runes[start] == ' ' {
+			start++
+		}
+		if start >= len(runes) {
+			break
+		}
+
+		end := start
+		for end < len(runes) && lipgloss.Width(string(runes[start:end+1])) <= width {
+			end++
+		}
+		if end >= len(runes) {
+			lines = append(lines, string(runes[start:]))
+			break
+		}
+		if end == start {
+			end++
+		}
+
+		breakAt := -1
+		for i := end - 1; i > start; i-- {
+			if runes[i] == ' ' {
+				breakAt = i
+				break
+			}
+		}
+		if breakAt > start {
+			lines = append(lines, strings.TrimRight(string(runes[start:breakAt]), " "))
+			start = breakAt + 1
+			continue
+		}
+
+		lines = append(lines, string(runes[start:end]))
+		start = end
+	}
+	if len(lines) == 0 {
+		return []string{""}
+	}
+	return lines
+}
+
 func splitHeights(total, count int) []int {
 	if count <= 0 {
 		return nil
