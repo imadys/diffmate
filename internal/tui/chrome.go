@@ -43,6 +43,7 @@ func (m model) keySegments() []keySegment {
 			{"ctrl+g", m.settings.Agent + " suggest"},
 			{"ctrl+s", "commit"},
 			{"ctrl+d", "clear"},
+			{"ctrl+y", "copy"},
 			{"esc", "cancel"},
 		}
 	}
@@ -65,6 +66,7 @@ func (m model) keySegments() []keySegment {
 	if m.mode == mergePickerMode {
 		return []keySegment{
 			{"j/k", "branch"},
+			{"/", "search"},
 			{"enter", "merge"},
 			{"esc", "cancel"},
 		}

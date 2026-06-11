@@ -97,6 +97,8 @@ type model struct {
 	confirmMessage   string
 	branchNameInput  string
 	mergeSelected    int
+	mergeSearch      string
+	mergeSearchMode  bool
 	inputError       string
 }
 
@@ -124,6 +126,11 @@ type suggestMsg struct {
 type suggestTickMsg struct{}
 type cursorTickMsg struct{}
 type autoRefreshMsg struct{}
+
+type clipboardMsg struct {
+	status string
+	err    error
+}
 
 func New(repo git.Repo) model {
 	userSettings, err := settings.Load()
@@ -200,7 +207,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncConflictViewport()
 		m.updateDiffViewportContent()
 		m.diffViewport.GotoTop()
-		if len(m.files) == 0 {
+		if len(m.files) == 0 && (m.status == "" || m.status == "loading" || m.status == "refreshing") {
 			m.status = "working tree clean"
 		}
 		return m, nil
@@ -230,6 +237,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.inputError = firstLine(msg.err.Error())
 			m.status = "new branch failed"
 			m.appendConsoleError("branch", msg.err)
+		} else if strings.HasPrefix(msg.status, "merge") {
+			m.status = msg.status
+			m.appendConsoleError("merge", msg.err)
 		} else {
 			m.status = "action failed"
 			m.appendConsoleError("git", msg.err)
@@ -261,6 +271,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.cursorVisible = !m.cursorVisible
 		return m, cursorTick()
+	case clipboardMsg:
+		if msg.err != nil {
+			m.status = "copy failed"
+			m.appendConsoleError("copy", msg.err)
+			return m, nil
+		}
+		m.status = msg.status
+		return m, nil
 	case autoRefreshMsg:
 		if (m.mode != reviewMode && m.mode != conflictMode) || m.showWelcome || m.showTabs || m.showHelp || m.loading {
 			return m, autoRefreshTick()
@@ -533,6 +551,8 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.mode = mergePickerMode
 			m.mergeSelected = m.defaultMergeSelection()
+			m.mergeSearch = ""
+			m.mergeSearchMode = false
 			m.err = nil
 			m.status = "select branch to merge"
 			return m, nil
@@ -621,6 +641,8 @@ func (m model) updateCommitMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.commitError = ""
 		m.status = "commit message cleared"
 		return m, nil
+	case "ctrl+y":
+		return m, m.copyCommitText()
 	case "ctrl+g":
 		m.suggesting = true
 		m.suggestStarted = time.Now()
@@ -649,6 +671,23 @@ func (m model) updateCommitMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m model) copyCommitText() tea.Cmd {
+	value := strings.TrimSpace(m.commitCopyText())
+	return func() tea.Msg {
+		if err := copyToClipboard(value); err != nil {
+			return clipboardMsg{err: err}
+		}
+		return clipboardMsg{status: "copied to clipboard"}
+	}
+}
+
+func (m model) commitCopyText() string {
+	if strings.TrimSpace(m.commitError) != "" {
+		return m.commitError
+	}
+	return m.commitMessage
 }
 
 func (m model) updateConfirmMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -710,18 +749,57 @@ func (m model) updateBranchInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateMergePickerMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.mergeSearchMode {
+		switch msg.String() {
+		case "esc":
+			m.mergeSearchMode = false
+			m.mergeSearch = ""
+			m.mergeSelected = m.defaultMergeSelection()
+			m.status = "merge search cancelled"
+		case "enter":
+			m.mergeSearchMode = false
+			m.status = "merge search applied"
+		case "backspace":
+			if len(m.mergeSearch) > 0 {
+				runes := []rune(m.mergeSearch)
+				m.mergeSearch = string(runes[:len(runes)-1])
+				m.syncMergeSelectionToSearch()
+			}
+		default:
+			if msg.Type == tea.KeyRunes {
+				m.mergeSearch += msg.String()
+				m.syncMergeSelectionToSearch()
+			}
+		}
+		return m, nil
+	}
+
 	switch msg.String() {
 	case "esc":
 		m.mode = reviewMode
+		m.mergeSearch = ""
+		m.mergeSearchMode = false
 		m.status = "merge cancelled"
 		return m, nil
 	case "q", "ctrl+c":
 		return m, tea.Quit
+	case "/":
+		m.mergeSearchMode = true
+		m.mergeSearch = ""
+		m.cursorVisible = true
+		m.status = "search merge branches"
+		return m, cursorTick()
 	case "up", "k":
 		m.moveMergeSelection(-1)
 	case "down", "j":
 		m.moveMergeSelection(1)
 	case "enter", " ":
+		if len(m.filteredMergeIndices()) == 0 {
+			m.err = errors.New("no matching branch to merge")
+			m.status = "merge unavailable"
+			m.appendConsoleError("merge", m.err)
+			return m, nil
+		}
 		return m, m.mergeSelectedBranch()
 	}
 	return m, nil
@@ -969,17 +1047,42 @@ func (m *model) moveSidebarSelection(delta int) {
 }
 
 func (m *model) moveMergeSelection(delta int) {
-	if len(m.branches) == 0 {
+	indices := m.filteredMergeIndices()
+	if len(indices) == 0 {
 		return
 	}
-	next := m.mergeSelected
-	for range len(m.branches) {
-		next = (next + delta + len(m.branches)) % len(m.branches)
-		if !m.branches[next].Current {
-			m.mergeSelected = next
-			return
-		}
+	position := indexOfInt(indices, m.mergeSelected)
+	if position < 0 {
+		position = 0
+	} else {
+		position = (position + delta + len(indices)) % len(indices)
 	}
+	m.mergeSelected = indices[position]
+}
+
+func (m *model) syncMergeSelectionToSearch() {
+	indices := m.filteredMergeIndices()
+	if len(indices) == 0 {
+		return
+	}
+	if indexOfInt(indices, m.mergeSelected) < 0 {
+		m.mergeSelected = indices[0]
+	}
+}
+
+func (m model) filteredMergeIndices() []int {
+	query := strings.ToLower(strings.TrimSpace(m.mergeSearch))
+	indices := make([]int, 0, len(m.branches))
+	for i, branch := range m.branches {
+		if branch.Current {
+			continue
+		}
+		if query != "" && !strings.Contains(strings.ToLower(branch.Name), query) {
+			continue
+		}
+		indices = append(indices, i)
+	}
+	return indices
 }
 
 func (m *model) openConfirm(action confirmAction, title, message string) {
@@ -1025,10 +1128,9 @@ func (m model) currentBranchName() string {
 }
 
 func (m model) defaultMergeSelection() int {
-	for i, branch := range m.branches {
-		if !branch.Current {
-			return i
-		}
+	indices := m.filteredMergeIndices()
+	if len(indices) > 0 {
+		return indices[0]
 	}
 	return 0
 }

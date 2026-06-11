@@ -218,6 +218,28 @@ func TestContinueMergeAfterAcceptingOurs(t *testing.T) {
 	}
 }
 
+func TestMergeBranchReturnsAlreadyUpToDateOutput(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "diffmate@example.com")
+	runGit(t, dir, "config", "user.name", "Diffmate Test")
+
+	writeFile(t, dir, "notes.txt", "line: base\n")
+	runGit(t, dir, "add", "notes.txt")
+	runGit(t, dir, "commit", "-m", "chore: base")
+	runGit(t, dir, "checkout", "-b", "feature")
+	runGit(t, dir, "checkout", "main")
+
+	repo := Repo{Root: dir}
+	output, err := repo.MergeBranch(context.Background(), Branch{Name: "feature"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output, "Already up to date") {
+		t.Fatalf("expected already up to date output, got %q", output)
+	}
+}
+
 func TestInitCreatesRepositoryWithDescription(t *testing.T) {
 	dir := t.TempDir()
 

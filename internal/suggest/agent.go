@@ -217,6 +217,9 @@ func agentErrorLine(message string) string {
 		if parsed := jsonErrorMessage(line); parsed != "" {
 			return parsed
 		}
+		if normalized := normalizedAgentError(line); normalized != "" {
+			return normalized
+		}
 		if strings.HasPrefix(line, "OpenAI Codex ") || strings.HasPrefix(line, "Codex ") {
 			continue
 		}
@@ -231,6 +234,20 @@ func agentErrorLine(message string) string {
 		return fallback
 	}
 	return "agent command failed; check CLI auth, model, or sandbox settings"
+}
+
+func normalizedAgentError(line string) string {
+	lower := strings.ToLower(line)
+	if strings.Contains(lower, "not logged in") {
+		if strings.Contains(lower, "/login") {
+			return "not logged in; open the agent CLI and run /login"
+		}
+		return "not logged in; authenticate the agent CLI first"
+	}
+	if strings.Contains(lower, "unauthorized") {
+		return "unauthorized; authenticate the agent CLI first"
+	}
+	return ""
 }
 
 func isSeparatorLine(line string) bool {

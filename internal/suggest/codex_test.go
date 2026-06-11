@@ -50,6 +50,14 @@ func TestAgentErrorLineExtractsJSONError(t *testing.T) {
 	}
 }
 
+func TestAgentErrorLineNormalizesLoginError(t *testing.T) {
+	message := agentErrorLine("Not logged in · Please run /login")
+
+	if message != "not logged in; open the agent CLI and run /login" {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
 func TestCodexRunnerUsesAccountDefaultModel(t *testing.T) {
 	runner, err := runnerForAgent("codex", ".")
 	if err != nil {

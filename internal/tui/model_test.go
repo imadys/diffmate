@@ -58,4 +58,48 @@ func TestSearchSelectsFirstMatchingChange(t *testing.T) {
 	}
 }
 
+func TestFilteredMergeIndicesExcludeCurrentAndApplySearch(t *testing.T) {
+	m := model{
+		branches: []git.Branch{
+			{Name: "main", Current: true},
+			{Name: "feat/payments"},
+			{Name: "fix/navbar"},
+		},
+		mergeSearch: "pay",
+	}
+
+	indices := m.filteredMergeIndices()
+	if len(indices) != 1 || indices[0] != 1 {
+		t.Fatalf("expected only payments branch, got %#v", indices)
+	}
+}
+
+func TestMoveMergeSelectionUsesFilteredBranches(t *testing.T) {
+	m := model{
+		branches: []git.Branch{
+			{Name: "main", Current: true},
+			{Name: "feat/payments"},
+			{Name: "fix/navbar"},
+		},
+		mergeSelected: 1,
+	}
+
+	m.moveMergeSelection(1)
+
+	if m.mergeSelected != 2 {
+		t.Fatalf("expected merge selection to move to branch 2, got %d", m.mergeSelected)
+	}
+}
+
+func TestCommitCopyTextPrefersVisibleError(t *testing.T) {
+	m := model{
+		commitMessage: "feat: improve modal",
+		commitError:   "claude could not suggest a commit message",
+	}
+
+	if got := m.commitCopyText(); got != m.commitError {
+		t.Fatalf("expected error to be copied, got %q", got)
+	}
+}
+
 var _ tea.Model = model{}

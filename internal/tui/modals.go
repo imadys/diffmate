@@ -194,7 +194,7 @@ func (m model) renderCommitBox() string {
 	if m.suggesting {
 		help = mutedStyle.Render(fmt.Sprintf("asking %s for a commit message... %ds", m.settings.Agent, m.suggestElapsed))
 	} else {
-		help = mutedStyle.Render("ctrl+g suggest  ctrl+s commit  ctrl+d clear  esc cancel")
+		help = mutedStyle.Render("ctrl+g suggest  ctrl+s commit  ctrl+d clear  ctrl+y copy  esc cancel")
 	}
 	if m.commitError != "" {
 		help = errorStyle.Render(m.commitError) + "\n" + help
@@ -254,28 +254,43 @@ func (m model) renderBranchInputBox() string {
 func (m model) renderMergePickerBox() string {
 	width := clamp(64, 42, max(42, m.width-8))
 	height := clamp(16, 8, max(8, m.height-8))
-	contentHeight := max(1, height-5)
-	offset := keepIndexVisible(m.mergeSelected, len(m.branches), contentHeight)
-	end := min(len(m.branches), offset+contentHeight)
 	lines := []string{
 		titleStyle.Render("Merge branch"),
 		mutedStyle.Render("into " + m.currentBranchName()),
-		"",
 	}
-
-	for i := offset; i < end; i++ {
-		branch := m.branches[i]
-		label := branch.Name
-		if branch.Current {
-			label = label + " " + mutedStyle.Render("(current)")
+	if m.mergeSearchMode || m.mergeSearch != "" {
+		search := m.mergeSearch
+		if m.mergeSearchMode {
+			search += inputCursor(m.cursorVisible)
 		}
-		if i == m.mergeSelected {
+		if search == "" {
+			search = inputCursor(m.cursorVisible) + mutedStyle.Render("search branches")
+		}
+		lines = append(lines, subtleStyle.Render("/ ")+search)
+	}
+	lines = append(lines, "")
+
+	indices := m.filteredMergeIndices()
+	contentHeight := max(1, height-len(lines)-4)
+	selectedPosition := indexOfInt(indices, m.mergeSelected)
+	if selectedPosition < 0 {
+		selectedPosition = 0
+	}
+	offset := keepIndexVisible(selectedPosition, len(indices), contentHeight)
+	end := min(len(indices), offset+contentHeight)
+	if len(indices) == 0 {
+		lines = append(lines, mutedStyle.Render("No matching branches"))
+	}
+	for _, index := range indices[offset:end] {
+		branch := m.branches[index]
+		label := branch.Name
+		if index == m.mergeSelected {
 			label = selectedLineStyle(true, width-4).Render(label)
 		}
 		lines = append(lines, label)
 	}
 
-	lines = append(lines, "", mutedStyle.Render("enter merge  esc cancel"))
+	lines = append(lines, "", mutedStyle.Render("/ search  enter merge  esc cancel"))
 	return lipgloss.NewStyle().
 		Width(width).
 		Height(height).

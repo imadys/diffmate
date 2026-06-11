@@ -219,13 +219,26 @@ func (m model) deleteBranchBoth() tea.Cmd {
 	}
 }
 func (m model) mergeSelectedBranch() tea.Cmd {
-	if len(m.branches) == 0 {
+	indices := m.filteredMergeIndices()
+	if len(indices) == 0 {
 		return nil
 	}
-	branch := m.branches[m.mergeSelected]
+	selected := m.mergeSelected
+	if indexOfInt(indices, selected) < 0 {
+		selected = indices[0]
+	}
+	branch := m.branches[selected]
+	target := m.currentBranchName()
 	return func() tea.Msg {
-		err := m.repo.MergeBranch(context.Background(), branch)
-		return actionMsg{status: "merged " + branch.Name + " into " + m.currentBranchName(), err: err}
+		output, err := m.repo.MergeBranch(context.Background(), branch)
+		if err != nil {
+			return actionMsg{status: "merge failed", err: err}
+		}
+		status := "merged " + branch.Name + " into " + target
+		if strings.Contains(strings.ToLower(output), "already up to date") {
+			status = branch.Name + " already up to date"
+		}
+		return actionMsg{status: status, err: nil}
 	}
 }
 func (m model) updateFromUpstream() tea.Cmd {
