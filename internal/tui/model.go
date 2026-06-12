@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/imadys/diffmate/internal/git"
 	"github.com/imadys/diffmate/internal/settings"
+	"github.com/imadys/diffmate/internal/updater"
 )
 
 type screenMode int
@@ -129,6 +130,11 @@ type autoRefreshMsg struct{}
 
 type clipboardMsg struct {
 	status string
+	err    error
+}
+
+type updateMsg struct {
+	result updater.Result
 	err    error
 }
 
@@ -279,6 +285,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.status = msg.status
 		return m, nil
+	case updateMsg:
+		m.loading = false
+		if msg.err != nil {
+			m.status = "update failed"
+			m.appendConsoleError("update", msg.err)
+			return m, nil
+		}
+		m.status = msg.result.Message
+		return m, nil
 	case autoRefreshMsg:
 		if (m.mode != reviewMode && m.mode != conflictMode) || m.showWelcome || m.showTabs || m.showHelp || m.loading {
 			return m, autoRefreshTick()
@@ -395,6 +410,10 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.status = "refreshing"
 		return m, m.refresh()
+	case "V":
+		m.loading = true
+		m.status = "checking for update"
+		return m, m.checkForUpdate()
 	case "up", "k":
 		if m.focus == sidebarFocus {
 			m.moveSidebarSelection(-1)

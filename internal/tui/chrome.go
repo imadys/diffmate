@@ -108,6 +108,7 @@ func (m model) keySegments() []keySegment {
 			{"g/G", "top/bottom"},
 			{"left", "cards"},
 			{"/", "search"},
+			{"V", "update"},
 			{"?", "keymap"},
 		}
 	}
@@ -122,6 +123,7 @@ func (m model) keySegments() []keySegment {
 			{"D", "discard"},
 			{"c", "commit"},
 			{"/", "search"},
+			{"V", "update"},
 			{"?", "keymap"},
 		}
 	case branchesTab:
@@ -135,18 +137,21 @@ func (m model) keySegments() []keySegment {
 			{"D", "delete remote"},
 			{"ctrl+d", "delete both"},
 			{"/", "search"},
+			{"V", "update"},
 			{"?", "keymap"},
 		}
 	case commitsTab:
 		return []keySegment{
 			{"space", "view diff"},
 			{"/", "search"},
+			{"V", "update"},
 			{"?", "keymap"},
 		}
 	case stashTab:
 		return []keySegment{
 			{"space", "view stash"},
 			{"/", "search"},
+			{"V", "update"},
 			{"?", "keymap"},
 		}
 	default:

@@ -6,6 +6,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/imadys/diffmate/internal/git"
 	"github.com/imadys/diffmate/internal/suggest"
+	"github.com/imadys/diffmate/internal/updater"
+	"github.com/imadys/diffmate/internal/version"
 	"strings"
 )
 
@@ -259,6 +261,12 @@ func (m model) push() tea.Cmd {
 	return func() tea.Msg {
 		err := m.repo.Push(context.Background())
 		return actionMsg{status: "pushed current branch", err: err}
+	}
+}
+func (m model) checkForUpdate() tea.Cmd {
+	return func() tea.Msg {
+		result, err := updater.CheckAndInstall(context.Background(), version.Version)
+		return updateMsg{result: result, err: err}
 	}
 }
 func (m model) openPreferredEditor() tea.Cmd {

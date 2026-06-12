@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/imadys/diffmate/internal/updater"
 	"github.com/imadys/diffmate/internal/version"
 )
 
@@ -96,6 +98,15 @@ func (m docsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.syncDocsViewport()
 		m.updateDocsViewportContent()
+	case updateMsg:
+		if msg.err != nil {
+			m.err = msg.err
+			m.status = "update failed"
+			return m, nil
+		}
+		m.err = nil
+		m.status = msg.result.Message
+		return m, nil
 	case tea.KeyMsg:
 		switch m.mode {
 		case docsSearchMode:
@@ -120,6 +131,9 @@ func (m docsModel) updateDocsBrowseMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "R":
 		m.switchReview = true
 		return m, tea.Quit
+	case "V":
+		m.status = "checking for update"
+		return m, checkDocsUpdate()
 	case "/":
 		m.mode = docsSearchMode
 		m.searchQuery = ""
@@ -407,10 +421,18 @@ func (m docsModel) renderDocsFooter(width int) string {
 		keyStyle.Render("/") + " search",
 		keyStyle.Render("n") + " new",
 		keyStyle.Render("R") + " review",
+		keyStyle.Render("V") + " update",
 		keyStyle.Render("enter") + " edit",
 		keyStyle.Render("q") + " quit",
 	}
 	return keyBarStyle.Render(truncate(strings.Join(parts, " | "), width))
+}
+
+func checkDocsUpdate() tea.Cmd {
+	return func() tea.Msg {
+		result, err := updater.CheckAndInstall(context.Background(), version.Version)
+		return updateMsg{result: result, err: err}
+	}
 }
 
 func (m docsModel) renderDocsSidebar(width, height int) string {

@@ -53,6 +53,7 @@ func (m model) renderHelpBox() string {
 		"e, enter           open selected file in editor",
 		"/                  search focused sidebar card",
 		"r                  refresh",
+		"V                  check for update and install it",
 		"~                  show/hide console",
 		"ctrl+l             clear console log",
 		"q, esc             quit",
@@ -92,6 +93,7 @@ func (m model) renderWelcomeBox() string {
 		"ctrl+g             suggest commit with Codex",
 		"p                  push current branch",
 		"o / a              open preferred editor / agent",
+		"V                  check for update",
 		"q                  quit",
 	}
 
