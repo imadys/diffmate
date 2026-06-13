@@ -10,15 +10,15 @@ func colorDiffLine(line, path string) string {
 	case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
 		return codeMuted.Render(line)
 	case strings.HasPrefix(line, "+"):
-		return addStyle.Render("+") + highlightCode(line[1:], path)
+		return addStyle.Render("+") + highlightCode(visualText(line[1:]), path)
 	case strings.HasPrefix(line, "-"):
-		return delStyle.Render("-") + highlightCode(line[1:], path)
+		return delStyle.Render("-") + highlightCode(visualText(line[1:]), path)
 	case strings.HasPrefix(line, " "):
-		return " " + highlightCode(line[1:], path)
+		return " " + highlightCode(visualText(line[1:]), path)
 	case strings.HasPrefix(line, "@@"):
 		return hunkStyle.Render(line)
 	default:
-		return highlightCode(line, path)
+		return highlightCode(visualText(line), path)
 	}
 }
 func highlightCode(line, path string) string {

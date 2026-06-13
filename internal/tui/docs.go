@@ -11,6 +11,9 @@ import (
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/glamour/ansi"
+	"github.com/charmbracelet/glamour/styles"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/imadys/diffmate/internal/updater"
 	"github.com/imadys/diffmate/internal/version"
@@ -125,13 +128,13 @@ func (m docsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m docsModel) updateDocsBrowseMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	switch commandKey(msg) {
 	case "q", "esc", "ctrl+c":
 		return m, tea.Quit
 	case "R":
 		m.switchReview = true
 		return m, tea.Quit
-	case "V":
+	case "V", "v":
 		m.status = "checking for update"
 		return m, checkDocsUpdate()
 	case "/":
@@ -169,6 +172,14 @@ func (m docsModel) updateDocsBrowseMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.moveDocsSidebarSelection(1)
 		} else {
 			m.scrollDocs(1)
+		}
+	case "shift+up":
+		if m.focus == diffFocus {
+			m.scrollDocs(-fastScrollAmount(m.docsHeight()))
+		}
+	case "shift+down":
+		if m.focus == diffFocus {
+			m.scrollDocs(fastScrollAmount(m.docsHeight()))
 		}
 	case " ":
 		if m.focus == sidebarFocus {
@@ -330,7 +341,7 @@ func (m docsModel) updateDocsEditMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m docsModel) updateDocsConfirmExitMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	switch commandKey(msg) {
 	case "s", "ctrl+s":
 		quit := m.confirmQuit
 		m.saveEditedDoc()
@@ -676,14 +687,21 @@ func (m docsModel) selectedDocLine() docLine {
 }
 
 func (m docsModel) formattedDocContent(width int) []string {
-	lines := m.contentLines()
 	if len(m.files) == 0 {
 		return []string{mutedStyle.Render("No markdown files found.")}
 	}
+	if rendered, err := renderMarkdownContent(m.content, width); err == nil {
+		return rendered
+	}
+	return m.formattedRawDocContent(width)
+}
+
+func (m docsModel) formattedRawDocContent(width int) []string {
+	lines := m.contentLines()
 	formatted := make([]string, 0, len(lines))
 	for _, line := range lines {
 		for _, wrapped := range wrapLine(line, width) {
-			formatted = append(formatted, highlightMarkdownLine(wrapped))
+			formatted = append(formatted, highlightMarkdownLine(visualText(wrapped)))
 		}
 	}
 	return formatted
@@ -707,6 +725,41 @@ func (m docsModel) formattedEditContent(width int) []string {
 		formatted = append(formatted, line)
 	}
 	return formatted
+}
+
+func renderMarkdownContent(content string, width int) ([]string, error) {
+	if strings.TrimSpace(content) == "" {
+		return []string{""}, nil
+	}
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithStyles(diffmateMarkdownStyle()),
+		glamour.WithWordWrap(max(1, width)),
+	)
+	if err != nil {
+		return nil, err
+	}
+	rendered, err := renderer.Render(strings.ReplaceAll(content, "\t", "    "))
+	if err != nil {
+		return nil, err
+	}
+	rendered = strings.TrimRight(rendered, "\n")
+	if rendered == "" {
+		return []string{""}, nil
+	}
+	return strings.Split(rendered, "\n"), nil
+}
+
+func diffmateMarkdownStyle() ansi.StyleConfig {
+	style := styles.DarkStyleConfig
+	style.H1.Prefix = ""
+	style.H1.Suffix = ""
+	style.H1.BackgroundColor = nil
+	style.H2.Prefix = ""
+	style.H3.Prefix = ""
+	style.H4.Prefix = ""
+	style.H5.Prefix = ""
+	style.H6.Prefix = ""
+	return style
 }
 
 func (m docsModel) contentLines() []string {

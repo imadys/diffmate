@@ -107,7 +107,7 @@ func formatConflictContent(content, path string, width int) []string {
 		case strings.HasPrefix(line, ">>>>>>>"):
 			formatted = append(formatted, addStyle.Bold(true).Render(line))
 		default:
-			formatted = append(formatted, highlightCode(line, path))
+			formatted = append(formatted, highlightCode(visualText(line), path))
 		}
 	}
 	return formatted

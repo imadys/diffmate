@@ -3,12 +3,15 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
+
+var ansiPattern = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
 
 func TestFindMarkdownFilesSkipsGeneratedDirs(t *testing.T) {
 	root := t.TempDir()
@@ -212,6 +215,23 @@ func TestFormattedDocContentWrapsLongLines(t *testing.T) {
 	}
 }
 
+func TestRenderedDocContentHidesHeadingMarkers(t *testing.T) {
+	model := docsModel{
+		files:   []docFile{{Path: "README.md"}},
+		content: "## Preview\n\n## Why\n",
+	}
+
+	lines := model.formattedDocContent(80)
+	plain := lipgloss.NewStyle().Render(strings.Join(lines, "\n"))
+	plain = stripANSI(plain)
+	if strings.Contains(plain, "## Preview") || strings.Contains(plain, "## Why") {
+		t.Fatalf("expected rendered headings without markdown markers, got %q", plain)
+	}
+	if !strings.Contains(plain, "Preview") || !strings.Contains(plain, "Why") {
+		t.Fatalf("expected rendered heading text, got %q", plain)
+	}
+}
+
 func TestWrapLineHardWrapsLongTokens(t *testing.T) {
 	lines := wrapLine("supercalifragilistic", 5)
 	if len(lines) < 2 {
@@ -221,6 +241,15 @@ func TestWrapLineHardWrapsLongTokens(t *testing.T) {
 		if lipgloss.Width(line) > 5 {
 			t.Fatalf("expected line to fit width, got %d for %q", lipgloss.Width(line), line)
 		}
+	}
+}
+
+func TestFastScrollAmountUsesHalfPageWithMinimum(t *testing.T) {
+	if got := fastScrollAmount(20); got != 10 {
+		t.Fatalf("expected half-page scroll, got %d", got)
+	}
+	if got := fastScrollAmount(4); got != 3 {
+		t.Fatalf("expected minimum fast scroll, got %d", got)
 	}
 }
 
@@ -275,4 +304,8 @@ func writeTestFile(t *testing.T, root, path, content string) {
 	if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func stripANSI(value string) string {
+	return ansiPattern.ReplaceAllString(value, "")
 }

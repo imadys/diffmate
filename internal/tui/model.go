@@ -307,7 +307,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.showTabs {
 			return m.updateTabsMode(msg)
 		}
-		if m.showHelp && msg.String() != "?" {
+		if m.showHelp && commandKey(msg) != "?" {
 			m.showHelp = false
 			return m, nil
 		}
@@ -336,7 +336,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateWelcomeMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	switch commandKey(msg) {
 	case "?":
 		m.showHelp = !m.showHelp
 		return m, nil
@@ -351,7 +351,7 @@ func (m model) updateWelcomeMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	switch commandKey(msg) {
 	case "/":
 		if m.focus != sidebarFocus {
 			m.focus = sidebarFocus
@@ -410,7 +410,7 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.status = "refreshing"
 		return m, m.refresh()
-	case "V":
+	case "V", "v":
 		m.loading = true
 		m.status = "checking for update"
 		return m, m.checkForUpdate()
@@ -430,6 +430,14 @@ func (m model) updateReviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.loadDiff()
 		}
 		m.scrollDiff(1)
+	case "shift+up":
+		if m.focus == diffFocus {
+			m.scrollDiff(-fastScrollAmount(m.diffHeight()))
+		}
+	case "shift+down":
+		if m.focus == diffFocus {
+			m.scrollDiff(fastScrollAmount(m.diffHeight()))
+		}
 	case "left":
 		if m.focus == diffFocus {
 			m.focus = sidebarFocus
@@ -710,7 +718,7 @@ func (m model) commitCopyText() string {
 }
 
 func (m model) updateConfirmMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	switch commandKey(msg) {
 	case "esc", "n":
 		m.closeConfirm("cancelled")
 		return m, nil
@@ -793,7 +801,7 @@ func (m model) updateMergePickerMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	switch msg.String() {
+	switch commandKey(msg) {
 	case "esc":
 		m.mode = reviewMode
 		m.mergeSearch = ""
@@ -825,7 +833,7 @@ func (m model) updateMergePickerMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateConflictMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	switch commandKey(msg) {
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	case "up", "k":
@@ -834,6 +842,10 @@ func (m model) updateConflictMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		m.moveConflictSelection(1)
 		return m, m.loadConflictContent()
+	case "shift+up":
+		m.scrollConflict(-fastScrollAmount(m.conflictHeight()))
+	case "shift+down":
+		m.scrollConflict(fastScrollAmount(m.conflictHeight()))
 	case "[", "left":
 		m.scrollConflict(-1)
 	case "]", "right":
@@ -874,7 +886,7 @@ func (m model) updateConflictMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateTabsMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	switch commandKey(msg) {
 	case "esc", ",", "t":
 		m.showTabs = false
 	case "q", "ctrl+c":
@@ -909,6 +921,10 @@ func (m *model) moveConfigSelection(delta int) {
 	case 2:
 		m.tabMenuSelected = clamp(m.tabMenuSelected+delta, 0, len(agentOptions)-1)
 	}
+}
+
+func fastScrollAmount(height int) int {
+	return max(3, height/2)
 }
 
 func (m *model) alignConfigSelection() {
